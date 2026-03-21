@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
-import type { SubjectProgress } from "../../backend.d";
-import { Subject } from "../../backend.d";
+import { Subject } from "../../types/local";
+import type { SubjectProgress } from "../../types/local";
 
 const SUBJECT_META: Record<
   Subject,

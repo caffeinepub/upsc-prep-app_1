@@ -13,6 +13,7 @@ import {
   ChevronRight,
   Clock,
   SortAsc,
+  TrendingUp,
   Trophy,
   XCircle,
 } from "lucide-react";
@@ -55,6 +56,224 @@ function AccuracyBadge({ accuracy }: { accuracy: number }) {
   );
 }
 
+function AnalyticsSection({ results }: { results: TestResult[] }) {
+  const bestScore = Math.max(...results.map((r) => r.score));
+  const avgScore = Math.round(
+    results.reduce((s, r) => s + r.score, 0) / results.length,
+  );
+  const last5 = [...results]
+    .sort((a, b) => b.completedAt - a.completedAt)
+    .slice(0, 5)
+    .reverse();
+
+  const barColor = (score: number) => {
+    if (score >= 72) return "#10b981";
+    if (score >= 48) return "#f59e0b";
+    return "#ef4444";
+  };
+
+  const maxBar = 120;
+
+  return (
+    <motion.div
+      data-ocid="analytics.section"
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35 }}
+      className="mb-6"
+    >
+      {/* Stat cards */}
+      <div className="grid grid-cols-3 gap-3 mb-4">
+        <Card className="shadow-card">
+          <CardContent className="p-4 text-center">
+            <Trophy
+              size={18}
+              className="mx-auto mb-1.5"
+              style={{ color: "oklch(var(--navy))" }}
+            />
+            <p className="text-xs text-muted-foreground mb-0.5">Best Score</p>
+            <p
+              className="text-xl font-bold"
+              style={{ color: "oklch(var(--navy))" }}
+            >
+              {bestScore}
+              <span className="text-sm font-normal text-muted-foreground">
+                /120
+              </span>
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="shadow-card">
+          <CardContent className="p-4 text-center">
+            <TrendingUp size={18} className="mx-auto mb-1.5 text-amber-500" />
+            <p className="text-xs text-muted-foreground mb-0.5">Average</p>
+            <p className="text-xl font-bold text-amber-600">
+              {avgScore}
+              <span className="text-sm font-normal text-muted-foreground">
+                /120
+              </span>
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="shadow-card">
+          <CardContent className="p-4 text-center">
+            <BookOpen size={18} className="mx-auto mb-1.5 text-violet-500" />
+            <p className="text-xs text-muted-foreground mb-0.5">Tests Taken</p>
+            <p className="text-xl font-bold text-violet-600">
+              {results.length}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Improvement trend */}
+      {last5.length >= 2 && (
+        <Card className="shadow-card">
+          <CardContent className="p-4">
+            <p className="text-xs font-semibold text-muted-foreground mb-3">
+              Improvement Trend (Last 5 Tests)
+            </p>
+            <div className="flex items-end gap-2 h-20">
+              {last5.map((r, i) => (
+                <div
+                  key={r.attemptId ?? r.testId}
+                  className="flex flex-col items-center flex-1 gap-1"
+                >
+                  <span
+                    className="text-xs font-bold"
+                    style={{ color: barColor(r.score) }}
+                  >
+                    {r.score}
+                  </span>
+                  <div
+                    className="w-full rounded-t-md transition-all"
+                    style={{
+                      height: `${Math.round((r.score / maxBar) * 56)}px`,
+                      background: barColor(r.score),
+                      minHeight: "4px",
+                    }}
+                  />
+                  <span className="text-[10px] text-muted-foreground">
+                    T{i + 1}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div className="flex items-center gap-4 mt-3 text-[10px] text-muted-foreground">
+              <span className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-sm bg-emerald-500 inline-block" />{" "}
+                ≥60% (Pass)
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-sm bg-amber-400 inline-block" />{" "}
+                40–59%
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-sm bg-red-400 inline-block" />{" "}
+                &lt;40%
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </motion.div>
+  );
+}
+
+const SUBJECT_CONFIG = [
+  { key: "Legal Aptitude", label: "Legal Aptitude", total: 60 },
+  { key: "General Knowledge", label: "GK & Current Affairs", total: 30 },
+  { key: "Mental Ability", label: "Mental Ability", total: 30 },
+];
+
+function InsightSection({ results }: { results: TestResult[] }) {
+  const insights = SUBJECT_CONFIG.map(({ key, label, total }) => {
+    const accs = results
+      .map((r) => {
+        const s = r.bySubject?.[key];
+        if (!s) return null;
+        return Math.round((s.correct / total) * 100);
+      })
+      .filter((v): v is number => v !== null);
+    const avg = accs.length
+      ? Math.round(accs.reduce((a, b) => a + b, 0) / accs.length)
+      : 0;
+    let chip = {
+      label: `${label} is improving`,
+      cls: "bg-amber-100 text-amber-700",
+    };
+    if (avg >= 70)
+      chip = {
+        label: `Your ${label} is strong ✓`,
+        cls: "bg-emerald-100 text-emerald-700",
+      };
+    else if (avg < 50)
+      chip = {
+        label: `${label} needs improvement`,
+        cls: "bg-red-100 text-red-700",
+      };
+    return { label, avg, chip };
+  });
+
+  return (
+    <motion.div
+      data-ocid="analytics.insights.section"
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, delay: 0.1 }}
+      className="mb-6"
+    >
+      <h2 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+        <TrendingUp size={15} style={{ color: "oklch(var(--navy))" }} />
+        Performance Insights
+      </h2>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {insights.map(({ label, avg, chip }) => (
+          <Card key={label} className="shadow-card">
+            <CardContent className="p-4">
+              <p className="text-xs font-semibold text-foreground mb-2">
+                {label}
+              </p>
+              <p
+                className="text-2xl font-bold mb-2"
+                style={{ color: "oklch(var(--navy))" }}
+              >
+                {avg}%
+              </p>
+              <span
+                className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full ${chip.cls}`}
+              >
+                {chip.label}
+              </span>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </motion.div>
+  );
+}
+
+function SubjectBreakdown({ result }: { result: TestResult }) {
+  return (
+    <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
+      {SUBJECT_CONFIG.map(({ key, total }) => {
+        const s = result.bySubject?.[key];
+        const shortLabel =
+          key === "Legal Aptitude"
+            ? "Legal"
+            : key === "General Knowledge"
+              ? "GK"
+              : "Mental";
+        return (
+          <span key={key} className="text-[11px] text-muted-foreground">
+            {shortLabel}: {s ? s.correct : "–"}/{total}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
 function HistoryList({
   onViewDetail,
 }: {
@@ -67,13 +286,22 @@ function HistoryList({
       ? [...all].sort((a, b) => b.completedAt - a.completedAt)
       : [...all].sort((a, b) => b.accuracy - a.accuracy);
 
+  // Assign human-readable test number by chronological order
+  const chronological = [...all].sort((a, b) => a.completedAt - b.completedAt);
+  const testNumbers = new Map<string, number>();
+  chronological.forEach((r, i) => {
+    testNumbers.set(r.attemptId ?? String(r.testId), i + 1);
+  });
+  const getTestNum = (r: TestResult) =>
+    testNumbers.get(r.attemptId ?? String(r.testId)) ?? r.testId;
+
   return (
     <div className="max-w-[900px] mx-auto px-4 sm:px-6 py-8">
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
-        className="flex items-start justify-between gap-4 mb-8"
+        className="flex items-start justify-between gap-4 mb-6"
       >
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-1">
@@ -127,6 +355,9 @@ function HistoryList({
         </div>
       </motion.div>
 
+      {all.length >= 1 && <AnalyticsSection results={all} />}
+      {all.length >= 2 && <InsightSection results={all} />}
+
       {sorted.length === 0 ? (
         <motion.div
           data-ocid="history.empty_state"
@@ -153,7 +384,7 @@ function HistoryList({
         <div className="flex flex-col gap-4">
           {sorted.map((result, i) => (
             <motion.div
-              key={result.testId}
+              key={result.attemptId ?? result.testId}
               data-ocid={`history.item.${i + 1}`}
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
@@ -165,7 +396,7 @@ function HistoryList({
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <h3 className="font-semibold text-sm text-foreground truncate">
-                          LAWCET Mock Test {result.testId}
+                          Mock Test {getTestNum(result)}
                         </h3>
                         <AccuracyBadge accuracy={result.accuracy} />
                       </div>
@@ -183,6 +414,7 @@ function HistoryList({
                           {formatTime(result.timeTaken)}
                         </span>
                       </div>
+                      <SubjectBreakdown result={result} />
                     </div>
                     <Button
                       data-ocid={`history.item.${i + 1}.primary_button`}
@@ -252,7 +484,7 @@ function QuestionDetailView({
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3, delay: 0.05 }}
-        className="mb-6"
+        className="mb-4"
       >
         <Card
           className="shadow-card"
@@ -260,9 +492,9 @@ function QuestionDetailView({
         >
           <CardContent className="p-5">
             <h2 className="text-white font-bold text-lg mb-4">
-              LAWCET Mock Test {result.testId}
+              LAWCET Mock Test — {formatDate(result.completedAt)}
             </h2>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-3 gap-4 mb-4">
               <div className="text-center">
                 <p className="text-white/60 text-xs mb-1">Score</p>
                 <p className="text-white font-bold text-xl">
@@ -282,6 +514,26 @@ function QuestionDetailView({
                 </p>
               </div>
             </div>
+            {/* Subject breakdown */}
+            {result.bySubject && (
+              <div className="grid grid-cols-3 gap-2 pt-4 border-t border-white/20">
+                {SUBJECT_CONFIG.map(({ key, label, total }) => {
+                  const s = result.bySubject?.[key];
+                  const acc = s ? Math.round((s.correct / total) * 100) : 0;
+                  return (
+                    <div key={key} className="text-center">
+                      <p className="text-white/50 text-[10px] mb-0.5 truncate">
+                        {label}
+                      </p>
+                      <p className="text-white font-semibold text-sm">
+                        {s ? s.correct : 0}/{total}
+                      </p>
+                      <p className="text-white/70 text-[10px]">{acc}%</p>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </CardContent>
         </Card>
       </motion.div>

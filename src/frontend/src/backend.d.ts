@@ -7,28 +7,16 @@ export interface None {
     __kind__: "None";
 }
 export type Option<T> = Some<T> | None;
-export type Time = bigint;
-export interface SubjectProgress {
-    subject: Subject;
-    completionPercentage: bigint;
-}
 export interface UserProfile {
-    displayName: string;
-    joinDate: Time;
-    studyStreak: bigint;
+    name: string;
 }
-export interface DailyTarget {
-    id: bigint;
-    isCompleted: boolean;
-    description: string;
+export enum RegisterUserResult {
+    ok = "ok",
+    emailTaken = "emailTaken"
 }
-export enum Subject {
-    scienceTech = "scienceTech",
-    economy = "economy",
-    history = "history",
-    geography = "geography",
-    currentAffairs = "currentAffairs",
-    polity = "polity"
+export enum UpdateUserNameResult {
+    ok = "ok",
+    notFound = "notFound"
 }
 export enum UserRole {
     admin = "admin",
@@ -36,16 +24,16 @@ export enum UserRole {
     guest = "guest"
 }
 export interface backendInterface {
-    addDailyTarget(description: string): Promise<bigint>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
-    clearCompletedTargets(): Promise<void>;
-    getCallerStudyProgress(): Promise<Array<SubjectProgress>>;
     getCallerUserProfile(): Promise<UserProfile | null>;
     getCallerUserRole(): Promise<UserRole>;
-    getDailyTargets(): Promise<Array<DailyTarget>>;
+    getUserByEmail(email: string): Promise<{
+        name: string;
+        passwordHash: string;
+    } | null>;
     getUserProfile(user: Principal): Promise<UserProfile | null>;
     isCallerAdmin(): Promise<boolean>;
+    registerUser(name: string, email: string, passwordHash: string): Promise<RegisterUserResult>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
-    toggleTargetCompletion(targetId: bigint): Promise<void>;
-    updateStudyProgress(subject: Subject, completionPercentage: bigint): Promise<void>;
+    updateUserName(email: string, name: string): Promise<UpdateUserNameResult>;
 }

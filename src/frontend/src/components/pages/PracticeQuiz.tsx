@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { type Question, upscQuestions } from "@/data/upscQuestions";
 import { useDailyProgress } from "@/hooks/useDailyProgress";
+import { recordActivity } from "@/lib/streakTracker";
 import { ArrowLeft, CheckCircle2, RotateCcw, XCircle } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useMemo, useState } from "react";
@@ -110,6 +111,7 @@ export function PracticeQuiz({ subject, onClose }: PracticeQuizProps) {
       }
     }
     incrementCompleted(QUESTIONS_PER_SESSION);
+    recordActivity();
     setSubmitted(true);
   }
 

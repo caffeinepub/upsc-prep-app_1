@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { DailyTarget, SubjectProgress, UserProfile } from "../backend.d";
+import type { UserProfile } from "../backend.d";
+import type { DailyTarget, SubjectProgress } from "../types/local";
 import { useActor } from "./useActor";
 
 export function useUserProfile() {
@@ -15,36 +16,28 @@ export function useUserProfile() {
 }
 
 export function useStudyProgress() {
-  const { actor, isFetching } = useActor();
+  // Study progress is managed via localStorage (syllabus tracker)
   return useQuery<SubjectProgress[]>({
     queryKey: ["studyProgress"],
-    queryFn: async () => {
-      if (!actor) return [];
-      return actor.getCallerStudyProgress();
-    },
-    enabled: !!actor && !isFetching,
+    queryFn: async () => [],
+    enabled: false,
   });
 }
 
 export function useDailyTargets() {
-  const { actor, isFetching } = useActor();
+  // Daily targets are managed via localStorage (daily practice page)
   return useQuery<DailyTarget[]>({
     queryKey: ["dailyTargets"],
-    queryFn: async () => {
-      if (!actor) return [];
-      return actor.getDailyTargets();
-    },
-    enabled: !!actor && !isFetching,
+    queryFn: async () => [],
+    enabled: false,
   });
 }
 
 export function useToggleTarget() {
-  const { actor } = useActor();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (targetId: bigint) => {
-      if (!actor) throw new Error("Not authenticated");
-      return actor.toggleTargetCompletion(targetId);
+    mutationFn: async (_targetId: bigint) => {
+      // no-op: daily targets are managed via localStorage
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["dailyTargets"] });

@@ -7,8 +7,8 @@ import type { Variants } from "motion/react";
 import { useState } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 
-interface LoginPageProps {
-  onSwitchToSignup: () => void;
+interface SignupPageProps {
+  onSwitchToLogin: () => void;
 }
 
 const features = [
@@ -23,31 +23,45 @@ const fieldVariants: Variants = {
     opacity: 1,
     y: 0,
     transition: {
-      delay: 0.15 + i * 0.07,
+      delay: 0.15 + i * 0.06,
       duration: 0.35,
       ease: [0, 0, 0.2, 1] as [number, number, number, number],
     },
   }),
 };
 
-export function LoginPage({ onSwitchToSignup }: LoginPageProps) {
-  const { login } = useAuth();
+export function SignupPage({ onSwitchToLogin }: SignupPageProps) {
+  const { signup } = useAuth();
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    if (!email || !password) {
-      setError("Please fill in all fields.");
+    if (!name.trim() || !email.trim() || !password || !confirmPassword) {
+      setError("All fields are required.");
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError("Please enter a valid email address.");
+      return;
+    }
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters.");
+      return;
+    }
+    if (confirmPassword !== password) {
+      setError("Passwords do not match.");
       return;
     }
     setLoading(true);
-    const result = await login(email, password);
+    const result = await signup(name, email, password);
     setLoading(false);
-    if (!result.success) setError(result.error ?? "Login failed.");
+    if (!result.success) setError(result.error ?? "Signup failed.");
   };
 
   return (
@@ -154,17 +168,17 @@ export function LoginPage({ onSwitchToSignup }: LoginPageProps) {
               className="mb-7"
             >
               <h2 className="text-2xl font-bold text-gray-900 mb-1">
-                Welcome back
+                Get started today
               </h2>
               <p className="text-sm text-gray-500">
-                Sign in to continue your preparation
+                Create your free account and start preparing
               </p>
             </motion.div>
 
             <form
               onSubmit={handleSubmit}
               className="space-y-4"
-              data-ocid="login.modal"
+              data-ocid="signup.modal"
             >
               <motion.div
                 custom={1}
@@ -174,19 +188,19 @@ export function LoginPage({ onSwitchToSignup }: LoginPageProps) {
                 className="space-y-1.5"
               >
                 <Label
-                  htmlFor="login-email"
+                  htmlFor="signup-name"
                   className="text-sm font-medium text-gray-700"
                 >
-                  Email
+                  Full Name
                 </Label>
                 <Input
-                  id="login-email"
-                  data-ocid="login.input"
-                  type="email"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  autoComplete="email"
+                  id="signup-name"
+                  data-ocid="signup.input"
+                  type="text"
+                  placeholder="Your full name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  autoComplete="name"
                   className="h-11 rounded-xl border-gray-200 focus:border-[#0F3554] focus:ring-2 focus:ring-[#0F3554]/20"
                 />
               </motion.div>
@@ -199,19 +213,69 @@ export function LoginPage({ onSwitchToSignup }: LoginPageProps) {
                 className="space-y-1.5"
               >
                 <Label
-                  htmlFor="login-password"
+                  htmlFor="signup-email"
+                  className="text-sm font-medium text-gray-700"
+                >
+                  Email
+                </Label>
+                <Input
+                  id="signup-email"
+                  data-ocid="signup.input"
+                  type="email"
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  autoComplete="email"
+                  className="h-11 rounded-xl border-gray-200 focus:border-[#0F3554] focus:ring-2 focus:ring-[#0F3554]/20"
+                />
+              </motion.div>
+
+              <motion.div
+                custom={3}
+                variants={fieldVariants}
+                initial="hidden"
+                animate="visible"
+                className="space-y-1.5"
+              >
+                <Label
+                  htmlFor="signup-password"
                   className="text-sm font-medium text-gray-700"
                 >
                   Password
                 </Label>
                 <Input
-                  id="login-password"
-                  data-ocid="login.input"
+                  id="signup-password"
+                  data-ocid="signup.input"
                   type="password"
-                  placeholder="Enter your password"
+                  placeholder="At least 6 characters"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  autoComplete="current-password"
+                  autoComplete="new-password"
+                  className="h-11 rounded-xl border-gray-200 focus:border-[#0F3554] focus:ring-2 focus:ring-[#0F3554]/20"
+                />
+              </motion.div>
+
+              <motion.div
+                custom={4}
+                variants={fieldVariants}
+                initial="hidden"
+                animate="visible"
+                className="space-y-1.5"
+              >
+                <Label
+                  htmlFor="signup-confirm-password"
+                  className="text-sm font-medium text-gray-700"
+                >
+                  Confirm Password
+                </Label>
+                <Input
+                  id="signup-confirm-password"
+                  data-ocid="signup.input"
+                  type="password"
+                  placeholder="Confirm your password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  autoComplete="new-password"
                   className="h-11 rounded-xl border-gray-200 focus:border-[#0F3554] focus:ring-2 focus:ring-[#0F3554]/20"
                 />
               </motion.div>
@@ -219,12 +283,12 @@ export function LoginPage({ onSwitchToSignup }: LoginPageProps) {
               <AnimatePresence>
                 {error && (
                   <motion.div
-                    key="login-error"
+                    key="signup-error"
                     initial={{ opacity: 0, y: -4 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -4 }}
                     transition={{ duration: 0.2 }}
-                    data-ocid="login.error_state"
+                    data-ocid="signup.error_state"
                     className="p-3 rounded-xl bg-red-50 border border-red-100"
                   >
                     <p className="text-sm text-red-600">{error}</p>
@@ -233,7 +297,7 @@ export function LoginPage({ onSwitchToSignup }: LoginPageProps) {
               </AnimatePresence>
 
               <motion.div
-                custom={3}
+                custom={5}
                 variants={fieldVariants}
                 initial="hidden"
                 animate="visible"
@@ -245,7 +309,7 @@ export function LoginPage({ onSwitchToSignup }: LoginPageProps) {
                 >
                   <Button
                     type="submit"
-                    data-ocid="login.submit_button"
+                    data-ocid="signup.submit_button"
                     disabled={loading}
                     className="w-full h-11 rounded-xl font-semibold text-sm text-white transition-all hover:brightness-110"
                     style={{ background: "#0F3554" }}
@@ -253,10 +317,10 @@ export function LoginPage({ onSwitchToSignup }: LoginPageProps) {
                     {loading ? (
                       <>
                         <Loader2 size={16} className="mr-2 animate-spin" />
-                        Signing in…
+                        Creating account…
                       </>
                     ) : (
-                      "Sign In"
+                      "Create Account"
                     )}
                   </Button>
                 </motion.div>
@@ -264,21 +328,21 @@ export function LoginPage({ onSwitchToSignup }: LoginPageProps) {
             </form>
 
             <motion.p
-              custom={4}
+              custom={6}
               variants={fieldVariants}
               initial="hidden"
               animate="visible"
               className="mt-6 text-center text-sm text-gray-500"
             >
-              Don't have an account?{" "}
+              Already have an account?{" "}
               <button
                 type="button"
-                data-ocid="login.link"
-                onClick={onSwitchToSignup}
+                data-ocid="signup.link"
+                onClick={onSwitchToLogin}
                 className="font-semibold hover:underline transition-colors"
                 style={{ color: "#0F3554" }}
               >
-                Sign up
+                Sign in
               </button>
             </motion.p>
           </div>

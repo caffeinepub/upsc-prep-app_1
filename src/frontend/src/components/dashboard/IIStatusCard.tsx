@@ -1,10 +1,8 @@
 import { ShieldCheck } from "lucide-react";
-import { useInternetIdentity } from "../../hooks/useInternetIdentity";
+import { useAuth } from "../../contexts/AuthContext";
 
 export function IIStatusCard() {
-  const { identity } = useInternetIdentity();
-  const principal = identity?.getPrincipal().toString() ?? "";
-  const shortPrincipal = principal ? `${principal.slice(0, 10)}...` : "Unknown";
+  const { user } = useAuth();
 
   return (
     <div
@@ -12,55 +10,37 @@ export function IIStatusCard() {
       className="bg-white rounded-xl border border-border shadow-card p-5"
     >
       <h2 className="text-sm font-semibold text-foreground mb-4">
-        Internet Identity Status
+        Account Status
       </h2>
 
-      {/* Verified badge */}
       <div className="flex items-center gap-2.5 mb-4">
-        <div
-          className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
-          style={{ background: "oklch(var(--success-bg))" }}
-        >
-          <ShieldCheck
-            size={18}
-            style={{ color: "oklch(var(--success-text))" }}
-          />
+        <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 bg-green-50">
+          <ShieldCheck size={18} className="text-green-600" />
         </div>
         <div>
-          <p
-            className="text-xs font-semibold"
-            style={{ color: "oklch(var(--success-text))" }}
-          >
-            Verified & Connected
-          </p>
-          <p className="text-xs text-muted-foreground">
-            Identity authenticated
-          </p>
+          <p className="text-xs font-semibold text-green-600">Signed In</p>
+          <p className="text-xs text-muted-foreground">Session active</p>
         </div>
       </div>
 
       <div className="space-y-2">
         <div className="flex justify-between gap-2">
-          <span className="text-xs text-muted-foreground">Principal ID</span>
-          <span className="text-xs font-mono font-medium text-foreground">
-            {shortPrincipal}
+          <span className="text-xs text-muted-foreground">Name</span>
+          <span className="text-xs font-medium text-foreground">
+            {user?.name ?? "—"}
           </span>
         </div>
         <div className="flex justify-between gap-2">
-          <span className="text-xs text-muted-foreground">Session</span>
-          <span
-            className="text-xs font-medium px-2 py-0.5 rounded-full"
-            style={{
-              background: "oklch(var(--success-bg))",
-              color: "oklch(var(--success-text))",
-            }}
-          >
+          <span className="text-xs text-muted-foreground">Email</span>
+          <span className="text-xs font-medium text-foreground truncate max-w-[140px]">
+            {user?.email ?? "—"}
+          </span>
+        </div>
+        <div className="flex justify-between gap-2">
+          <span className="text-xs text-muted-foreground">Status</span>
+          <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-green-50 text-green-600">
             Active
           </span>
-        </div>
-        <div className="flex justify-between gap-2">
-          <span className="text-xs text-muted-foreground">Last login</span>
-          <span className="text-xs text-foreground">Just now</span>
         </div>
       </div>
     </div>

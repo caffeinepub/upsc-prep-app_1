@@ -13,52 +13,39 @@ export const UserRole = IDL.Variant({
   'user' : IDL.Null,
   'guest' : IDL.Null,
 });
-export const Subject = IDL.Variant({
-  'scienceTech' : IDL.Null,
-  'economy' : IDL.Null,
-  'history' : IDL.Null,
-  'geography' : IDL.Null,
-  'currentAffairs' : IDL.Null,
-  'polity' : IDL.Null,
+export const UserProfile = IDL.Record({ 'name' : IDL.Text });
+export const RegisterUserResult = IDL.Variant({
+  'ok' : IDL.Null,
+  'emailTaken' : IDL.Null,
 });
-export const SubjectProgress = IDL.Record({
-  'subject' : Subject,
-  'completionPercentage' : IDL.Nat,
-});
-export const Time = IDL.Int;
-export const UserProfile = IDL.Record({
-  'displayName' : IDL.Text,
-  'joinDate' : Time,
-  'studyStreak' : IDL.Nat,
-});
-export const DailyTarget = IDL.Record({
-  'id' : IDL.Nat,
-  'isCompleted' : IDL.Bool,
-  'description' : IDL.Text,
+export const UpdateUserNameResult = IDL.Variant({
+  'ok' : IDL.Null,
+  'notFound' : IDL.Null,
 });
 
 export const idlService = IDL.Service({
   '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
-  'addDailyTarget' : IDL.Func([IDL.Text], [IDL.Nat], []),
   'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
-  'clearCompletedTargets' : IDL.Func([], [], []),
-  'getCallerStudyProgress' : IDL.Func(
-      [],
-      [IDL.Vec(SubjectProgress)],
-      ['query'],
-    ),
   'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
   'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
-  'getDailyTargets' : IDL.Func([], [IDL.Vec(DailyTarget)], ['query']),
+  'getUserByEmail' : IDL.Func(
+      [IDL.Text],
+      [IDL.Opt(IDL.Record({ 'name' : IDL.Text, 'passwordHash' : IDL.Text }))],
+      ['query'],
+    ),
   'getUserProfile' : IDL.Func(
       [IDL.Principal],
       [IDL.Opt(UserProfile)],
       ['query'],
     ),
   'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
+  'registerUser' : IDL.Func(
+      [IDL.Text, IDL.Text, IDL.Text],
+      [RegisterUserResult],
+      [],
+    ),
   'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
-  'toggleTargetCompletion' : IDL.Func([IDL.Nat], [], []),
-  'updateStudyProgress' : IDL.Func([Subject, IDL.Nat], [], []),
+  'updateUserName' : IDL.Func([IDL.Text, IDL.Text], [UpdateUserNameResult], []),
 });
 
 export const idlInitArgs = [];
@@ -69,52 +56,43 @@ export const idlFactory = ({ IDL }) => {
     'user' : IDL.Null,
     'guest' : IDL.Null,
   });
-  const Subject = IDL.Variant({
-    'scienceTech' : IDL.Null,
-    'economy' : IDL.Null,
-    'history' : IDL.Null,
-    'geography' : IDL.Null,
-    'currentAffairs' : IDL.Null,
-    'polity' : IDL.Null,
+  const UserProfile = IDL.Record({ 'name' : IDL.Text });
+  const RegisterUserResult = IDL.Variant({
+    'ok' : IDL.Null,
+    'emailTaken' : IDL.Null,
   });
-  const SubjectProgress = IDL.Record({
-    'subject' : Subject,
-    'completionPercentage' : IDL.Nat,
-  });
-  const Time = IDL.Int;
-  const UserProfile = IDL.Record({
-    'displayName' : IDL.Text,
-    'joinDate' : Time,
-    'studyStreak' : IDL.Nat,
-  });
-  const DailyTarget = IDL.Record({
-    'id' : IDL.Nat,
-    'isCompleted' : IDL.Bool,
-    'description' : IDL.Text,
+  const UpdateUserNameResult = IDL.Variant({
+    'ok' : IDL.Null,
+    'notFound' : IDL.Null,
   });
   
   return IDL.Service({
     '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
-    'addDailyTarget' : IDL.Func([IDL.Text], [IDL.Nat], []),
     'assignCallerUserRole' : IDL.Func([IDL.Principal, UserRole], [], []),
-    'clearCompletedTargets' : IDL.Func([], [], []),
-    'getCallerStudyProgress' : IDL.Func(
-        [],
-        [IDL.Vec(SubjectProgress)],
-        ['query'],
-      ),
     'getCallerUserProfile' : IDL.Func([], [IDL.Opt(UserProfile)], ['query']),
     'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
-    'getDailyTargets' : IDL.Func([], [IDL.Vec(DailyTarget)], ['query']),
+    'getUserByEmail' : IDL.Func(
+        [IDL.Text],
+        [IDL.Opt(IDL.Record({ 'name' : IDL.Text, 'passwordHash' : IDL.Text }))],
+        ['query'],
+      ),
     'getUserProfile' : IDL.Func(
         [IDL.Principal],
         [IDL.Opt(UserProfile)],
         ['query'],
       ),
     'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
+    'registerUser' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Text],
+        [RegisterUserResult],
+        [],
+      ),
     'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
-    'toggleTargetCompletion' : IDL.Func([IDL.Nat], [], []),
-    'updateStudyProgress' : IDL.Func([Subject, IDL.Nat], [], []),
+    'updateUserName' : IDL.Func(
+        [IDL.Text, IDL.Text],
+        [UpdateUserNameResult],
+        [],
+      ),
   });
 };
 

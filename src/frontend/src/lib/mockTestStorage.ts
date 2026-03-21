@@ -11,6 +11,7 @@ export interface TestSession {
 
 export interface TestResult {
   testId: number;
+  attemptId?: string;
   score: number;
   total: number;
   accuracy: number;
@@ -23,6 +24,10 @@ export interface TestResult {
 
 const SESSION_PREFIX = "lawcet_session_";
 const RESULT_PREFIX = "lawcet_result_";
+
+export function generateAttemptId(): string {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2);
+}
 
 export function saveSession(session: TestSession): void {
   try {
@@ -51,10 +56,10 @@ export function clearSession(testId: number): void {
 
 export function saveResult(result: TestResult): void {
   try {
-    localStorage.setItem(
-      `${RESULT_PREFIX}${result.testId}`,
-      JSON.stringify(result),
-    );
+    const key = result.attemptId
+      ? `${RESULT_PREFIX}${result.attemptId}`
+      : `${RESULT_PREFIX}${result.testId}`;
+    localStorage.setItem(key, JSON.stringify(result));
   } catch {
     // ignore quota errors
   }

@@ -4,210 +4,153 @@ import Time "mo:core/Time";
 import Array "mo:core/Array";
 import Principal "mo:core/Principal";
 import Runtime "mo:core/Runtime";
+import Text "mo:core/Text";
 import MixinAuthorization "authorization/MixinAuthorization";
 import AccessControl "authorization/access-control";
+
+
 
 actor {
   let accessControlState = AccessControl.initState();
   include MixinAuthorization(accessControlState);
 
-  type Subject = {
-    #history;
-    #geography;
-    #polity;
-    #economy;
-    #scienceTech;
-    #currentAffairs;
+  public type UserProfile = {
+    name : Text;
   };
 
-  type SubjectProgress = {
-    subject : Subject;
-    completionPercentage : Nat;
+  type InternalUserProfile = {
+    name : Text;
+    email : Text;
+    passwordHash : Text;
+    principal : ?Principal;
   };
 
-  type UserProfile = {
-    displayName : Text;
-    joinDate : Time.Time;
-    studyStreak : Nat;
+  type RegisterUserResult = {
+    #ok;
+    #emailTaken;
   };
 
-  type DailyTarget = {
-    id : Nat;
-    description : Text;
-    isCompleted : Bool;
+  type UpdateUserNameResult = {
+    #ok;
+    #notFound;
   };
 
-  let userProfiles = Map.empty<Principal, UserProfile>();
-  let userStudyProgress = Map.empty<Principal, Map.Map<Nat, Nat>>();
-  let dailyTargets = Map.empty<Principal, List.List<DailyTarget>>();
-  var nextTargetId = 0;
+  let users = Map.empty<Text, InternalUserProfile>();
 
-  func subjectToNat(subject : Subject) : Nat {
-    switch (subject) {
-      case (#history) { 0 };
-      case (#geography) { 1 };
-      case (#polity) { 2 };
-      case (#economy) { 3 };
-      case (#scienceTech) { 4 };
-      case (#currentAffairs) { 5 };
+  // Public registration - anyone can register
+  public shared ({ caller }) func registerUser(name : Text, email : Text, passwordHash : Text) : async RegisterUserResult {
+    let normalizedEmail = email.toLower();
+
+    switch (users.get(normalizedEmail)) {
+      case (null) {
+        let newUser : InternalUserProfile = {
+          name;
+          email = normalizedEmail;
+          passwordHash;
+          principal = null;
+        };
+        users.add(normalizedEmail, newUser);
+        #ok;
+      };
+      case (?_existing) { #emailTaken };
     };
   };
 
-  func natToSubject(n : Nat) : Subject {
-    switch (n) {
-      case (0) { #history };
-      case (1) { #geography };
-      case (2) { #polity };
-      case (3) { #economy };
-      case (4) { #scienceTech };
-      case (5) { #currentAffairs };
-      case (_) { #history };
+  // Public query for authentication purposes - returns passwordHash for login verification
+  // This is intentionally public as it's needed for the authentication flow
+  public query ({ caller }) func getUserByEmail(email : Text) : async ?{
+    name : Text;
+    passwordHash : Text;
+  } {
+    users.get(email.toLower()).map(
+      func(user) {
+        {
+          name = user.name;
+          passwordHash = user.passwordHash;
+        };
+      }
+    );
+  };
+
+  // Public update - anyone can update any user's name
+  // This matches the user requirement of "no authentication/authorization needed"
+  public shared ({ caller }) func updateUserName(email : Text, name : Text) : async UpdateUserNameResult {
+    let normalizedEmail = email.toLower();
+    switch (users.get(normalizedEmail)) {
+      case (null) { #notFound };
+      case (?user) {
+        let updatedUser = {
+          user with
+          name;
+        };
+        users.add(normalizedEmail, updatedUser);
+        #ok;
+      };
     };
   };
 
+  // Required profile management functions for the authorization system
   public query ({ caller }) func getCallerUserProfile() : async ?UserProfile {
-    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
-      Runtime.trap("Unauthorized: Only users can access profiles");
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Runtime.trap("Unauthorized: Only users can view profiles");
     };
-    userProfiles.get(caller);
+    
+    // Find user by principal
+    for ((email, user) in users.entries()) {
+      switch (user.principal) {
+        case (?p) {
+          if (Principal.equal(p, caller)) {
+            return ?{ name = user.name };
+          };
+        };
+        case null {};
+      };
+    };
+    null;
   };
 
   public query ({ caller }) func getUserProfile(user : Principal) : async ?UserProfile {
     if (caller != user and not AccessControl.isAdmin(accessControlState, caller)) {
       Runtime.trap("Unauthorized: Can only view your own profile");
     };
-    userProfiles.get(user);
+    
+    // Find user by principal
+    for ((email, userProfile) in users.entries()) {
+      switch (userProfile.principal) {
+        case (?p) {
+          if (Principal.equal(p, user)) {
+            return ?{ name = userProfile.name };
+          };
+        };
+        case null {};
+      };
+    };
+    null;
   };
 
   public shared ({ caller }) func saveCallerUserProfile(profile : UserProfile) : async () {
-    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Runtime.trap("Unauthorized: Only users can save profiles");
     };
-    userProfiles.add(caller, {
-      profile with
-      joinDate = Time.now();
-      studyStreak = 0;
-    });
-  };
-
-  public query ({ caller }) func getCallerStudyProgress() : async [SubjectProgress] {
-    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
-      Runtime.trap("Unauthorized: Only users can access study progress");
-    };
-    switch (userStudyProgress.get(caller)) {
-      case (null) { [] };
-      case (?subjects) {
-        let allKeys = subjects.keys().toArray();
-        allKeys.map(
-          func(subject) {
-            {
-              subject = natToSubject(subject);
-              completionPercentage = switch (subjects.get(subject)) {
-                case (null) { 0 };
-                case (?completion) { completion };
-              };
+    
+    // Find and update user by principal
+    for ((email, user) in users.entries()) {
+      switch (user.principal) {
+        case (?p) {
+          if (Principal.equal(p, caller)) {
+            let updatedUser = {
+              user with
+              name = profile.name;
             };
-          }
-        );
+            users.add(email, updatedUser);
+            return;
+          };
+        };
+        case null {};
       };
     };
-  };
-
-  public shared ({ caller }) func updateStudyProgress(subject : Subject, completionPercentage : Nat) : async () {
-    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
-      Runtime.trap("Unauthorized: Only users can update study progress");
-    };
-    let progress = switch (userStudyProgress.get(caller)) {
-      case (null) {
-        Map.empty<Nat, Nat>();
-      };
-      case (?existing) {
-        existing;
-      };
-    };
-
-    let subjectKey = subjectToNat(subject);
-    progress.add(subjectKey, completionPercentage);
-    userStudyProgress.add(caller, progress);
-  };
-
-  public shared ({ caller }) func addDailyTarget(description : Text) : async Nat {
-    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
-      Runtime.trap("Unauthorized: Only users can add daily targets");
-    };
-    let target = {
-      id = nextTargetId;
-      description;
-      isCompleted = false;
-    };
-
-    let targets = switch (dailyTargets.get(caller)) {
-      case (null) {
-        List.empty<DailyTarget>();
-      };
-      case (?existing) {
-        existing;
-      };
-    };
-
-    targets.add(target);
-    dailyTargets.add(caller, targets);
-
-    nextTargetId += 1;
-    target.id;
-  };
-
-  public shared ({ caller }) func toggleTargetCompletion(targetId : Nat) : async () {
-    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
-      Runtime.trap("Unauthorized: Only users can toggle target completion");
-    };
-    switch (dailyTargets.get(caller)) {
-      case (null) {
-        Runtime.trap("No daily targets found for user");
-      };
-      case (?targets) {
-        let updatedTargets = targets.map<DailyTarget, DailyTarget>(
-          func(target) {
-            if (target.id == targetId) {
-              {
-                id = target.id;
-                description = target.description;
-                isCompleted = not target.isCompleted;
-              };
-            } else {
-              target;
-            };
-          }
-        );
-        dailyTargets.add(caller, updatedTargets);
-      };
-    };
-  };
-
-  public shared ({ caller }) func clearCompletedTargets() : async () {
-    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
-      Runtime.trap("Unauthorized: Only users can clear completed targets");
-    };
-    switch (dailyTargets.get(caller)) {
-      case (null) {
-        Runtime.trap("No daily targets found for user");
-      };
-      case (?targets) {
-        let filteredTargets = targets.filter(
-          func(target) { not target.isCompleted }
-        );
-        dailyTargets.add(caller, filteredTargets);
-      };
-    };
-  };
-
-  public query ({ caller }) func getDailyTargets() : async [DailyTarget] {
-    if (not AccessControl.hasPermission(accessControlState, caller, #user)) {
-      Runtime.trap("Unauthorized: Only users can access daily targets");
-    };
-    switch (dailyTargets.get(caller)) {
-      case (null) { [] };
-      case (?targets) { targets.toArray() };
-    };
+    
+    // If no user found with this principal, we can't create one without email
+    Runtime.trap("No user account found for this principal");
   };
 };

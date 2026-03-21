@@ -3,12 +3,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useDailyProgress } from "@/hooks/useDailyProgress";
 import {
   clearSession,
+  generateAttemptId,
   loadSession,
   saveResult,
   saveSession,
 } from "@/lib/mockTestStorage";
+import { recordActivity } from "@/lib/streakTracker";
 import { cn } from "@/lib/utils";
 import {
   AlertTriangle,
@@ -18,7 +21,6 @@ import {
   ChevronRight,
   Clock,
   Flag,
-  Grid3X3,
   Send,
   Star,
   Timer,
@@ -33,6 +35,7 @@ import {
   type Subject,
   questionBank,
 } from "../../data/questionBank";
+import { CBTExamInterface, type CBTQuestion } from "../exam/CBTExamInterface";
 
 type Phase = "exam" | "results" | "review";
 
@@ -67,10 +70,11 @@ interface MockExamPageProps {
 }
 
 export function MockExamPage({ testId, onExit }: MockExamPageProps) {
+  const { incrementCompleted } = useDailyProgress();
   const [questions] = useState<Question[]>(() => selectQuestions());
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const [reviewIndex, setReviewIndex] = useState(0);
 
-  // Restore from saved session if available
+  // Id-based answers (question.id → option index)
   const [answers, setAnswers] = useState<Record<number, number>>(() => {
     const session = loadSession(testId);
     return session ? session.answers : {};
@@ -84,9 +88,7 @@ export function MockExamPage({ testId, onExit }: MockExamPageProps) {
     return session ? session.timeLeft : 90 * 60;
   });
   const [phase, setPhase] = useState<Phase>("exam");
-  const [paletteOpen, setPaletteOpen] = useState(false);
 
-  // startedAt: use stored session value or now
   const startTimeRef = useRef<number>(
     (() => {
       const session = loadSession(testId);
@@ -94,7 +96,7 @@ export function MockExamPage({ testId, onExit }: MockExamPageProps) {
     })(),
   );
 
-  // Auto-save session whenever answers, markedForReview, or timeLeft changes
+  // Auto-save session
   useEffect(() => {
     if (phase !== "exam") return;
     saveSession({
@@ -106,28 +108,6 @@ export function MockExamPage({ testId, onExit }: MockExamPageProps) {
       startedAt: startTimeRef.current,
     });
   }, [testId, questions, answers, markedForReview, timeLeft, phase]);
-
-  const submit = useCallback(() => {
-    setPhase("results");
-  }, []);
-
-  useEffect(() => {
-    if (phase !== "exam") return;
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          submit();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [phase, submit]);
-
-  const currentQuestion = questions[currentIndex];
-  const timeCritical = timeLeft < 5 * 60;
 
   // Results computation
   const results = useMemo(() => {
@@ -154,6 +134,7 @@ export function MockExamPage({ testId, onExit }: MockExamPageProps) {
     const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
     saveResult({
       testId,
+      attemptId: generateAttemptId(),
       score: results.correct,
       total: results.total,
       accuracy,
@@ -164,328 +145,93 @@ export function MockExamPage({ testId, onExit }: MockExamPageProps) {
       answers,
     });
     clearSession(testId);
-  }, [phase, testId, results, questions, answers]);
+    recordActivity();
+    incrementCompleted(results.total);
+  }, [phase, testId, results, questions, answers, incrementCompleted]);
 
-  const getPaletteState = (q: Question) => {
-    if (markedForReview.has(q.id)) return "review";
-    if (answers[q.id] !== undefined) return "answered";
-    return "unanswered";
-  };
-
-  const handleAnswer = (optionIdx: number) => {
-    setAnswers((prev) => ({ ...prev, [currentQuestion.id]: optionIdx }));
-  };
-
-  const toggleReview = () => {
-    setMarkedForReview((prev) => {
-      const next = new Set(prev);
-      if (next.has(currentQuestion.id)) next.delete(currentQuestion.id);
-      else next.add(currentQuestion.id);
-      return next;
+  // Convert id-based answers → index-based for CBTInterface
+  const indexBasedAnswers = useMemo(() => {
+    const out: Record<number, number> = {};
+    questions.forEach((q, i) => {
+      if (answers[q.id] !== undefined) out[i] = answers[q.id];
     });
-  };
+    return out;
+  }, [questions, answers]);
+
+  // Convert index-based answers → id-based for session saving
+  const handleAnswerChange = useCallback(
+    (indexAnswers: Record<number, number>) => {
+      const idAnswers: Record<number, number> = {};
+      for (const [idxStr, optIdx] of Object.entries(indexAnswers)) {
+        const q = questions[Number(idxStr)];
+        if (q) idAnswers[q.id] = optIdx;
+      }
+      setAnswers(idAnswers);
+    },
+    [questions],
+  );
+
+  const handleMarkedChange = useCallback((markedArr: number[]) => {
+    // CBTInterface uses index-based marked, but we store question ids
+    // For session compat, store as is (array of indices mapped to question ids)
+    setMarkedForReview(new Set(markedArr));
+  }, []);
+
+  const handleTimeChange = useCallback((t: number) => {
+    setTimeLeft(t);
+  }, []);
+
+  const handleSubmit = useCallback(
+    (
+      indexAnswers: Record<number, number>,
+      finalMarked: Set<number>,
+      finalTimeLeft: number,
+    ) => {
+      // Convert to id-based
+      const idAnswers: Record<number, number> = {};
+      for (const [idxStr, optIdx] of Object.entries(indexAnswers)) {
+        const q = questions[Number(idxStr)];
+        if (q) idAnswers[q.id] = optIdx;
+      }
+      setAnswers(idAnswers);
+      setMarkedForReview(finalMarked);
+      setTimeLeft(finalTimeLeft);
+      setPhase("results");
+    },
+    [questions],
+  );
+
+  // Build CBT-compatible questions (index is used as key, id for identity)
+  const cbtQuestions: CBTQuestion[] = useMemo(
+    () =>
+      questions.map((q) => ({
+        id: q.id,
+        subject: q.subject,
+        question: q.question,
+        options: q.options,
+        correct: q.correct,
+        explanation: q.explanation,
+      })),
+    [questions],
+  );
+
+  const currentQuestion = questions[reviewIndex];
 
   // ── Exam UI ────────────────────────────────────────────────────────────────
   if (phase === "exam") {
     return (
-      <div
-        className="min-h-screen flex flex-col"
-        style={{ background: "oklch(0.96 0.008 243)" }}
-      >
-        <header
-          data-ocid="mock_exam.panel"
-          className="flex items-center justify-between px-4 sm:px-6 py-3 shadow-sm"
-          style={{ background: "oklch(var(--navy))", color: "white" }}
-        >
-          <div className="flex items-center gap-3">
-            <Button
-              data-ocid="mock_exam.close_button"
-              variant="ghost"
-              size="sm"
-              className="text-white/80 hover:text-white hover:bg-white/10 h-8 w-8 p-0"
-              onClick={onExit}
-            >
-              <X size={16} />
-            </Button>
-            <span className="font-semibold text-sm sm:text-base">
-              LAWCET Mock Test {testId}
-            </span>
-          </div>
-          <div className="flex items-center gap-3">
-            <div
-              className={cn(
-                "flex items-center gap-1.5 font-mono text-base font-bold px-3 py-1 rounded-lg",
-                timeCritical
-                  ? "bg-red-500 text-white animate-pulse"
-                  : "bg-white/15 text-white",
-              )}
-              data-ocid="mock_exam.panel"
-            >
-              <Clock size={14} />
-              {formatTime(timeLeft)}
-            </div>
-            <Button
-              data-ocid="mock_exam.submit_button"
-              size="sm"
-              onClick={submit}
-              className="gap-1 bg-green-600 hover:bg-green-700 text-white hidden sm:flex"
-            >
-              <Send size={13} /> Submit Test
-            </Button>
-            <Button
-              data-ocid="mock_exam.toggle"
-              variant="ghost"
-              size="sm"
-              className="text-white/80 hover:text-white hover:bg-white/10 h-8 w-8 p-0 lg:hidden"
-              onClick={() => setPaletteOpen((v) => !v)}
-            >
-              <Grid3X3 size={16} />
-            </Button>
-          </div>
-        </header>
-
-        <div className="flex flex-1 overflow-hidden">
-          <main className="flex-1 flex flex-col overflow-y-auto p-4 sm:p-6">
-            <div className="mb-4">
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-xs text-muted-foreground">
-                  Question {currentIndex + 1} of {questions.length}
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  {Object.keys(answers).length} answered
-                </span>
-              </div>
-              <Progress
-                value={((currentIndex + 1) / questions.length) * 100}
-                className="h-1.5"
-              />
-            </div>
-
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={currentIndex}
-                initial={{ opacity: 0, x: 24 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -24 }}
-                transition={{ duration: 0.2 }}
-              >
-                <Card className="shadow-md">
-                  <CardContent className="p-5 sm:p-7">
-                    <div className="flex items-center gap-2 mb-4">
-                      <Badge
-                        className={cn(
-                          "text-xs font-medium border-0",
-                          SUBJECT_COLOR[currentQuestion.subject],
-                        )}
-                      >
-                        {currentQuestion.subject}
-                      </Badge>
-                      {markedForReview.has(currentQuestion.id) && (
-                        <Badge className="text-xs bg-amber-100 text-amber-800 border-0">
-                          <Flag size={10} className="mr-1" /> Marked
-                        </Badge>
-                      )}
-                    </div>
-
-                    <p className="text-sm sm:text-base font-medium leading-relaxed mb-6 whitespace-pre-line">
-                      {currentQuestion.question}
-                    </p>
-
-                    <div className="space-y-3" data-ocid="mock_exam.card">
-                      {currentQuestion.options.map((opt, idx) => (
-                        <button
-                          type="button"
-                          key={opt}
-                          data-ocid={`mock_exam.radio.${idx + 1}`}
-                          onClick={() => handleAnswer(idx)}
-                          className={cn(
-                            "w-full text-left px-4 py-3 rounded-xl border-2 text-sm transition-all duration-150",
-                            answers[currentQuestion.id] === idx
-                              ? "border-[oklch(var(--navy))] bg-[oklch(0.94_0.02_243)] font-medium"
-                              : "border-border bg-background hover:border-[oklch(0.6_0.04_243)] hover:bg-muted",
-                          )}
-                        >
-                          <span className="inline-flex items-center gap-2">
-                            <span
-                              className={cn(
-                                "inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold flex-shrink-0",
-                                answers[currentQuestion.id] === idx
-                                  ? "bg-[oklch(var(--navy))] text-white"
-                                  : "bg-muted text-muted-foreground",
-                              )}
-                            >
-                              {String.fromCharCode(65 + idx)}
-                            </span>
-                            {opt}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            </AnimatePresence>
-
-            <div className="flex items-center justify-between mt-6 gap-3">
-              <Button
-                data-ocid="mock_exam.pagination_prev"
-                variant="outline"
-                size="sm"
-                disabled={currentIndex === 0}
-                onClick={() => setCurrentIndex((i) => i - 1)}
-                className="gap-1"
-              >
-                <ChevronLeft size={15} /> Previous
-              </Button>
-
-              <Button
-                data-ocid="mock_exam.toggle"
-                variant="outline"
-                size="sm"
-                onClick={toggleReview}
-                className={cn(
-                  "gap-1",
-                  markedForReview.has(currentQuestion.id)
-                    ? "border-amber-400 bg-amber-50 text-amber-800"
-                    : "",
-                )}
-              >
-                <Flag size={13} />
-                {markedForReview.has(currentQuestion.id)
-                  ? "Unmark"
-                  : "Mark for Review"}
-              </Button>
-
-              {currentIndex < questions.length - 1 ? (
-                <Button
-                  data-ocid="mock_exam.pagination_next"
-                  size="sm"
-                  onClick={() => setCurrentIndex((i) => i + 1)}
-                  className="gap-1"
-                  style={{ background: "oklch(var(--navy))", color: "white" }}
-                >
-                  Next <ChevronRight size={15} />
-                </Button>
-              ) : (
-                <Button
-                  data-ocid="mock_exam.submit_button"
-                  size="sm"
-                  onClick={submit}
-                  className="gap-1 bg-green-600 hover:bg-green-700 text-white"
-                >
-                  <Send size={13} /> Submit
-                </Button>
-              )}
-            </div>
-          </main>
-
-          <aside className="hidden lg:flex flex-col w-64 border-l bg-card p-4">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
-              Question Palette
-            </p>
-            <div className="grid grid-cols-5 gap-1.5 mb-4">
-              {questions.map((q, idx) => {
-                const state = getPaletteState(q);
-                return (
-                  <button
-                    type="button"
-                    key={q.id}
-                    data-ocid={`mock_exam.item.${idx + 1}`}
-                    onClick={() => setCurrentIndex(idx)}
-                    className={cn(
-                      "w-9 h-9 rounded-lg text-xs font-semibold transition-all",
-                      idx === currentIndex &&
-                        "ring-2 ring-offset-1 ring-[oklch(var(--navy))]",
-                      state === "answered" && "bg-green-500 text-white",
-                      state === "review" && "bg-amber-400 text-white",
-                      state === "unanswered" &&
-                        "bg-muted text-muted-foreground",
-                    )}
-                  >
-                    {idx + 1}
-                  </button>
-                );
-              })}
-            </div>
-            <div className="space-y-1.5 text-xs">
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-sm bg-green-500" />
-                <span className="text-muted-foreground">Answered</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-sm bg-amber-400" />
-                <span className="text-muted-foreground">Marked for Review</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-sm bg-muted border" />
-                <span className="text-muted-foreground">Not Answered</span>
-              </div>
-            </div>
-          </aside>
-        </div>
-
-        <AnimatePresence>
-          {paletteOpen && (
-            <motion.div
-              data-ocid="mock_exam.modal"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 bg-black/50 lg:hidden"
-              onClick={() => setPaletteOpen(false)}
-            >
-              <motion.div
-                initial={{ y: "100%" }}
-                animate={{ y: 0 }}
-                exit={{ y: "100%" }}
-                transition={{ type: "spring", damping: 25 }}
-                onClick={(e) => e.stopPropagation()}
-                className="absolute bottom-0 left-0 right-0 bg-card rounded-t-2xl p-5 max-h-[60vh] overflow-y-auto"
-              >
-                <div className="flex items-center justify-between mb-4">
-                  <p className="text-sm font-semibold">Question Palette</p>
-                  <Button
-                    data-ocid="mock_exam.close_button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 w-7 p-0"
-                    onClick={() => setPaletteOpen(false)}
-                  >
-                    <X size={14} />
-                  </Button>
-                </div>
-                <div className="grid grid-cols-8 gap-2">
-                  {questions.map((q, idx) => {
-                    const state = getPaletteState(q);
-                    return (
-                      <button
-                        type="button"
-                        key={q.id}
-                        data-ocid={`mock_exam.item.${idx + 1}`}
-                        onClick={() => {
-                          setCurrentIndex(idx);
-                          setPaletteOpen(false);
-                        }}
-                        className={cn(
-                          "w-9 h-9 rounded-lg text-xs font-semibold",
-                          idx === currentIndex &&
-                            "ring-2 ring-offset-1 ring-[oklch(var(--navy))]",
-                          state === "answered" && "bg-green-500 text-white",
-                          state === "review" && "bg-amber-400 text-white",
-                          state === "unanswered" &&
-                            "bg-muted text-muted-foreground",
-                        )}
-                      >
-                        {idx + 1}
-                      </button>
-                    );
-                  })}
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+      <CBTExamInterface
+        testName={`LAWCET Mock Test ${testId}`}
+        questions={cbtQuestions}
+        initialAnswers={indexBasedAnswers}
+        initialMarked={Array.from(markedForReview)}
+        initialTimeLeft={timeLeft}
+        onAnswerChange={handleAnswerChange}
+        onMarkedChange={handleMarkedChange}
+        onTimeChange={handleTimeChange}
+        onSubmit={handleSubmit}
+        onExit={onExit}
+      />
     );
   }
 
@@ -765,7 +511,7 @@ export function MockExamPage({ testId, onExit }: MockExamPageProps) {
                               Keep Practicing
                             </p>
                             <p className="text-xs text-muted-foreground mt-0.5">
-                              You're making progress. Aim for 70%+ accuracy
+                              You&apos;re making progress. Aim for 70%+ accuracy
                               across all sections for a strong LAWCET result.
                             </p>
                           </div>
@@ -781,7 +527,10 @@ export function MockExamPage({ testId, onExit }: MockExamPageProps) {
                 data-ocid="mock_results.primary_button"
                 className="flex-1 gap-2"
                 style={{ background: "oklch(var(--navy))", color: "white" }}
-                onClick={() => setPhase("review")}
+                onClick={() => {
+                  setReviewIndex(0);
+                  setPhase("review");
+                }}
               >
                 <BookOpen size={15} /> Review Answers
               </Button>
@@ -821,7 +570,7 @@ export function MockExamPage({ testId, onExit }: MockExamPageProps) {
             <ChevronLeft size={16} />
           </Button>
           <span className="font-semibold text-sm sm:text-base">
-            Review Mode — Q{currentIndex + 1}/{questions.length}
+            Review Mode — Q{reviewIndex + 1}/{questions.length}
           </span>
         </div>
         <span className="text-white/70 text-xs">
@@ -840,10 +589,10 @@ export function MockExamPage({ testId, onExit }: MockExamPageProps) {
                   type="button"
                   key={q.id}
                   data-ocid={`mock_review.item.${idx + 1}`}
-                  onClick={() => setCurrentIndex(idx)}
+                  onClick={() => setReviewIndex(idx)}
                   className={cn(
                     "w-8 h-8 rounded-lg text-xs font-semibold transition-all",
-                    idx === currentIndex &&
+                    idx === reviewIndex &&
                       "ring-2 ring-offset-1 ring-[oklch(var(--navy))]",
                     wasAnswered && isCorrect && "bg-green-500 text-white",
                     wasAnswered && !isCorrect && "bg-red-500 text-white",
@@ -858,7 +607,7 @@ export function MockExamPage({ testId, onExit }: MockExamPageProps) {
 
           <AnimatePresence mode="wait">
             <motion.div
-              key={currentIndex}
+              key={reviewIndex}
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
@@ -972,17 +721,17 @@ export function MockExamPage({ testId, onExit }: MockExamPageProps) {
               data-ocid="mock_review.pagination_prev"
               variant="outline"
               size="sm"
-              disabled={currentIndex === 0}
-              onClick={() => setCurrentIndex((i) => i - 1)}
+              disabled={reviewIndex === 0}
+              onClick={() => setReviewIndex((i) => i - 1)}
               className="gap-1"
             >
               <ChevronLeft size={15} /> Previous
             </Button>
-            {currentIndex < questions.length - 1 ? (
+            {reviewIndex < questions.length - 1 ? (
               <Button
                 data-ocid="mock_review.pagination_next"
                 size="sm"
-                onClick={() => setCurrentIndex((i) => i + 1)}
+                onClick={() => setReviewIndex((i) => i + 1)}
                 className="gap-1"
                 style={{ background: "oklch(var(--navy))", color: "white" }}
               >

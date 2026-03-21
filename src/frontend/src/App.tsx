@@ -2,59 +2,86 @@ import { Toaster } from "@/components/ui/sonner";
 import { useState } from "react";
 import { AuthGuard } from "./components/auth/AuthGuard";
 import { LoginPage } from "./components/auth/LoginPage";
+import { SignupPage } from "./components/auth/SignupPage";
 import { Dashboard } from "./components/dashboard/Dashboard";
-import { Footer } from "./components/layout/Footer";
-import { Header } from "./components/layout/Header";
+import { Sidebar } from "./components/layout/Sidebar";
+import { TopBar } from "./components/layout/TopBar";
 import { DailyPracticePage } from "./components/pages/DailyPracticePage";
+import { FlashcardsPage } from "./components/pages/FlashcardsPage";
 import { MockTestsPage } from "./components/pages/MockTestsPage";
-import { ProgressPage } from "./components/pages/ProgressPage";
+import { PYQPage } from "./components/pages/PYQPage";
+import { ProfilePage } from "./components/pages/ProfilePage";
 import { SyllabusTrackerPage } from "./components/pages/SyllabusTrackerPage";
-import { useInternetIdentity } from "./hooks/useInternetIdentity";
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
 
 export type ActivePage =
   | "Dashboard"
   | "Mock Tests"
-  | "Daily Practice"
-  | "Syllabus Tracker"
-  | "Progress";
+  | "PYQ"
+  | "Syllabus"
+  | "Flashcards"
+  | "Profile"
+  | "Daily Practice";
 
 function AppContent() {
-  const { identity } = useInternetIdentity();
+  const { user } = useAuth();
   const [activePage, setActivePage] = useState<ActivePage>("Dashboard");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [authPage, setAuthPage] = useState<"login" | "signup">("login");
 
-  if (!identity) return <LoginPage />;
+  if (!user) {
+    return authPage === "signup" ? (
+      <SignupPage onSwitchToLogin={() => setAuthPage("login")} />
+    ) : (
+      <LoginPage onSwitchToSignup={() => setAuthPage("signup")} />
+    );
+  }
 
   const renderPage = () => {
     switch (activePage) {
       case "Mock Tests":
         return <MockTestsPage />;
+      case "PYQ":
+        return <PYQPage />;
       case "Daily Practice":
         return <DailyPracticePage />;
-      case "Syllabus Tracker":
+      case "Syllabus":
         return <SyllabusTrackerPage />;
-      case "Progress":
-        return <ProgressPage />;
+      case "Flashcards":
+        return <FlashcardsPage />;
+      case "Profile":
+        return <ProfilePage />;
       default:
         return <Dashboard setActivePage={setActivePage} />;
     }
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
-      <Header activePage={activePage} setActivePage={setActivePage} />
-      <main className="flex-1">{renderPage()}</main>
-      <Footer />
+    <div
+      className="flex h-screen overflow-hidden"
+      style={{ background: "#F5F7FA" }}
+    >
+      <Sidebar
+        activePage={activePage}
+        setActivePage={setActivePage}
+        mobileOpen={sidebarOpen}
+        onMobileClose={() => setSidebarOpen(false)}
+      />
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <TopBar onMenuClick={() => setSidebarOpen(true)} />
+        <main className="flex-1 overflow-y-auto">{renderPage()}</main>
+      </div>
     </div>
   );
 }
 
 export default function App() {
   return (
-    <>
+    <AuthProvider>
       <AuthGuard>
         <AppContent />
       </AuthGuard>
       <Toaster />
-    </>
+    </AuthProvider>
   );
 }

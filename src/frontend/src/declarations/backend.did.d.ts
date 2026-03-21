@@ -10,44 +10,28 @@ import type { ActorMethod } from '@icp-sdk/core/agent';
 import type { IDL } from '@icp-sdk/core/candid';
 import type { Principal } from '@icp-sdk/core/principal';
 
-export interface DailyTarget {
-  'id' : bigint,
-  'isCompleted' : boolean,
-  'description' : string,
-}
-export type Subject = { 'scienceTech' : null } |
-  { 'economy' : null } |
-  { 'history' : null } |
-  { 'geography' : null } |
-  { 'currentAffairs' : null } |
-  { 'polity' : null };
-export interface SubjectProgress {
-  'subject' : Subject,
-  'completionPercentage' : bigint,
-}
-export type Time = bigint;
-export interface UserProfile {
-  'displayName' : string,
-  'joinDate' : Time,
-  'studyStreak' : bigint,
-}
+export type RegisterUserResult = { 'ok' : null } |
+  { 'emailTaken' : null };
+export type UpdateUserNameResult = { 'ok' : null } |
+  { 'notFound' : null };
+export interface UserProfile { 'name' : string }
 export type UserRole = { 'admin' : null } |
   { 'user' : null } |
   { 'guest' : null };
 export interface _SERVICE {
   '_initializeAccessControlWithSecret' : ActorMethod<[string], undefined>,
-  'addDailyTarget' : ActorMethod<[string], bigint>,
   'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
-  'clearCompletedTargets' : ActorMethod<[], undefined>,
-  'getCallerStudyProgress' : ActorMethod<[], Array<SubjectProgress>>,
   'getCallerUserProfile' : ActorMethod<[], [] | [UserProfile]>,
   'getCallerUserRole' : ActorMethod<[], UserRole>,
-  'getDailyTargets' : ActorMethod<[], Array<DailyTarget>>,
+  'getUserByEmail' : ActorMethod<
+    [string],
+    [] | [{ 'name' : string, 'passwordHash' : string }]
+  >,
   'getUserProfile' : ActorMethod<[Principal], [] | [UserProfile]>,
   'isCallerAdmin' : ActorMethod<[], boolean>,
+  'registerUser' : ActorMethod<[string, string, string], RegisterUserResult>,
   'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
-  'toggleTargetCompletion' : ActorMethod<[bigint], undefined>,
-  'updateStudyProgress' : ActorMethod<[Subject, bigint], undefined>,
+  'updateUserName' : ActorMethod<[string, string], UpdateUserNameResult>,
 }
 export declare const idlService: IDL.ServiceClass;
 export declare const idlInitArgs: IDL.Type[];

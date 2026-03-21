@@ -2,14 +2,15 @@ import { Button } from "@/components/ui/button";
 import { LogOut, Menu, X } from "lucide-react";
 import { useState } from "react";
 import type { ActivePage } from "../../App";
-import { useInternetIdentity } from "../../hooks/useInternetIdentity";
+import { useAuth } from "../../contexts/AuthContext";
 
 const NAV_LINKS: ActivePage[] = [
   "Dashboard",
   "Mock Tests",
-  "Daily Practice",
-  "Syllabus Tracker",
-  "Progress",
+  "PYQ",
+  "Syllabus",
+  "Flashcards",
+  "Profile",
 ];
 
 interface HeaderProps {
@@ -18,29 +19,27 @@ interface HeaderProps {
 }
 
 export function Header({ activePage, setActivePage }: HeaderProps) {
-  const { clear } = useInternetIdentity();
+  const { logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
     <header className="sticky top-0 z-40 bg-white border-b border-border">
       <div className="max-w-[1200px] mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
-        {/* Brand */}
         <div className="flex items-center gap-2 flex-shrink-0">
           <div
-            className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-bold"
-            style={{ background: "oklch(var(--navy))" }}
+            className="w-7 h-7 rounded-lg flex items-center justify-center text-sm"
+            style={{ background: "#0F3554" }}
           >
             ⚖️
           </div>
           <span
             className="font-bold text-sm tracking-tight"
-            style={{ color: "oklch(var(--navy))" }}
+            style={{ color: "#0F3554" }}
           >
             TS LAWCET
           </span>
         </div>
 
-        {/* Nav links (desktop) */}
         <nav className="hidden md:flex items-center gap-1 flex-1">
           {NAV_LINKS.map((link) => (
             <button
@@ -55,9 +54,7 @@ export function Header({ activePage, setActivePage }: HeaderProps) {
                   : "text-muted-foreground hover:text-foreground",
               ].join(" ")}
               style={
-                activePage === link
-                  ? { borderBottomColor: "oklch(var(--navy))" }
-                  : {}
+                activePage === link ? { borderBottomColor: "#0F3554" } : {}
               }
             >
               {link}
@@ -65,7 +62,6 @@ export function Header({ activePage, setActivePage }: HeaderProps) {
           ))}
         </nav>
 
-        {/* Mobile menu button */}
         <button
           type="button"
           className="md:hidden p-1.5 rounded-md text-muted-foreground hover:text-foreground"
@@ -75,24 +71,19 @@ export function Header({ activePage, setActivePage }: HeaderProps) {
           {menuOpen ? <X size={18} /> : <Menu size={18} />}
         </button>
 
-        {/* Logout */}
         <Button
           data-ocid="header.logout.button"
           variant="outline"
           size="sm"
-          onClick={clear}
+          onClick={logout}
           className="hidden md:flex flex-shrink-0 h-8 px-3 text-xs font-medium rounded-lg"
-          style={{
-            borderColor: "oklch(var(--navy))",
-            color: "oklch(var(--navy))",
-          }}
+          style={{ borderColor: "#0F3554", color: "#0F3554" }}
         >
           <LogOut size={13} className="mr-1.5" />
           Logout
         </Button>
       </div>
 
-      {/* Mobile menu */}
       {menuOpen && (
         <div className="md:hidden border-t border-border bg-white px-4 py-3">
           <nav className="flex flex-col gap-1 mb-3">
@@ -111,11 +102,7 @@ export function Header({ activePage, setActivePage }: HeaderProps) {
                     ? "text-white"
                     : "text-muted-foreground hover:text-foreground",
                 ].join(" ")}
-                style={
-                  activePage === link
-                    ? { background: "oklch(var(--navy))" }
-                    : {}
-                }
+                style={activePage === link ? { background: "#0F3554" } : {}}
               >
                 {link}
               </button>
@@ -124,12 +111,9 @@ export function Header({ activePage, setActivePage }: HeaderProps) {
           <Button
             variant="outline"
             size="sm"
-            onClick={clear}
+            onClick={logout}
             className="w-full h-8 text-xs"
-            style={{
-              borderColor: "oklch(var(--navy))",
-              color: "oklch(var(--navy))",
-            }}
+            style={{ borderColor: "#0F3554", color: "#0F3554" }}
           >
             <LogOut size={13} className="mr-1.5" /> Logout
           </Button>

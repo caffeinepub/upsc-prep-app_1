@@ -1,11 +1,11 @@
 import { Button } from "@/components/ui/button";
 import {
-  BarChart2,
+  BookMarked,
   BookOpen,
   Brain,
   FileText,
   Globe,
-  List,
+  UserCircle,
 } from "lucide-react";
 import type { ActivePage } from "../../App";
 
@@ -36,15 +36,15 @@ const QUICK_NAV_ITEMS = [
   },
   {
     label: "Syllabus",
-    icon: List,
+    icon: BookMarked,
     filled: false,
-    page: "Syllabus Tracker" as ActivePage,
+    page: "Syllabus" as ActivePage,
   },
   {
-    label: "Progress",
-    icon: BarChart2,
+    label: "Profile",
+    icon: UserCircle,
     filled: false,
-    page: "Progress" as ActivePage,
+    page: "Profile" as ActivePage,
   },
 ];
 
@@ -56,7 +56,7 @@ export function QuickNav({ setActivePage }: QuickNavProps) {
   return (
     <div
       data-ocid="quick_nav.section"
-      className="bg-white rounded-xl border border-border shadow-card p-5"
+      className="bg-white rounded-2xl border border-gray-100 shadow-card p-5"
     >
       <h2 className="text-sm font-semibold text-foreground mb-4">
         Quick Navigation

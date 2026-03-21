@@ -4,97 +4,18 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
-import { motion } from "motion/react";
-import { useEffect, useRef, useState } from "react";
-
-const SECTIONS = [
-  {
-    id: "legal",
-    title: "Legal Aptitude",
-    icon: "⚖️",
-    color: "oklch(0.85 0.06 243)",
-    topics: [
-      {
-        id: "contracts",
-        label: "Contracts",
-        subtopics: ["Offer", "Acceptance", "Consent"],
-      },
-      {
-        id: "torts",
-        label: "Torts",
-        subtopics: ["Negligence", "Nuisance", "Defamation"],
-      },
-      {
-        id: "constitutional",
-        label: "Constitutional Law",
-        subtopics: ["Fundamental Rights", "Fundamental Duties"],
-      },
-      { id: "maxims", label: "Legal Maxims", subtopics: [] },
-      {
-        id: "reasoning",
-        label: "Legal Reasoning",
-        subtopics: ["Principle-Fact Method"],
-      },
-    ],
-  },
-  {
-    id: "gk",
-    title: "GK & Current Affairs",
-    icon: "🌐",
-    color: "oklch(0.88 0.07 155)",
-    topics: [
-      {
-        id: "current",
-        label: "Current Affairs",
-        subtopics: ["Last 12 months"],
-      },
-      { id: "history", label: "Indian History Basics", subtopics: [] },
-      { id: "polity", label: "Polity Basics", subtopics: [] },
-      { id: "personalities", label: "Important Personalities", subtopics: [] },
-      { id: "awards", label: "Awards & Sports", subtopics: [] },
-    ],
-  },
-  {
-    id: "mental",
-    title: "Mental Ability",
-    icon: "🧠",
-    color: "oklch(0.87 0.05 300)",
-    topics: [
-      { id: "series", label: "Number Series", subtopics: [] },
-      { id: "coding", label: "Coding-Decoding", subtopics: [] },
-      { id: "analogies", label: "Analogies", subtopics: [] },
-      { id: "blood", label: "Blood Relations", subtopics: [] },
-      { id: "direction", label: "Direction Sense", subtopics: [] },
-    ],
-  },
-];
-
-function parentKey(sectionId: string, topicId: string) {
-  return `${sectionId}-${topicId}`;
-}
-function subKey(sectionId: string, topicId: string, idx: number) {
-  return `${sectionId}-${topicId}-${idx}`;
-}
-
-function getSectionCounts(sectionId: string, checked: Record<string, boolean>) {
-  const section = SECTIONS.find((s) => s.id === sectionId)!;
-  let total = 0;
-  let done = 0;
-  for (const topic of section.topics) {
-    if (topic.subtopics.length === 0) {
-      total += 1;
-      if (checked[parentKey(sectionId, topic.id)]) done += 1;
-    } else {
-      total += topic.subtopics.length;
-      for (let i = 0; i < topic.subtopics.length; i++) {
-        if (checked[subKey(sectionId, topic.id, i)]) done += 1;
-      }
-    }
-  }
-  return { total, done };
-}
+import {
+  SECTIONS,
+  parentKey,
+  subKey,
+  useSyllabusProgress,
+} from "@/hooks/useSyllabusProgress";
+import { Zap } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { useCallback, useEffect, useRef } from "react";
 
 function IndeterminateCheckbox({
   id,
@@ -112,7 +33,8 @@ function IndeterminateCheckbox({
   const ref = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     if (ref.current) {
-      (ref.current as HTMLInputElement).indeterminate = !!indeterminate;
+      (ref.current as unknown as HTMLInputElement).indeterminate =
+        !!indeterminate;
     }
   }, [indeterminate]);
   return (
@@ -126,78 +48,78 @@ function IndeterminateCheckbox({
   );
 }
 
-export function SyllabusTrackerPage() {
-  const [checked, setChecked] = useState<Record<string, boolean>>(() => {
-    try {
-      return JSON.parse(localStorage.getItem("tslawcet_syllabus") ?? "{}");
-    } catch {
-      return {};
-    }
-  });
-
-  const save = (next: Record<string, boolean>) => {
-    localStorage.setItem("tslawcet_syllabus", JSON.stringify(next));
-    setChecked(next);
-  };
-
-  const toggleParent = (
-    sectionId: string,
-    topicId: string,
-    subtopics: string[],
-  ) => {
-    const pk = parentKey(sectionId, topicId);
-    if (subtopics.length === 0) {
-      save({ ...checked, [pk]: !checked[pk] });
-      return;
-    }
-    // determine new state: check all if not all checked, else uncheck all
-    const allChecked = subtopics.every(
-      (_, i) => checked[subKey(sectionId, topicId, i)],
-    );
-    const next = { ...checked };
-    for (let i = 0; i < subtopics.length; i++) {
-      next[subKey(sectionId, topicId, i)] = !allChecked;
-    }
-    save(next);
-  };
-
-  const toggleSub = (sectionId: string, topicId: string, idx: number) => {
-    const sk = subKey(sectionId, topicId, idx);
-    save({ ...checked, [sk]: !checked[sk] });
-  };
-
-  // Overall counts
-  let totalAll = 0;
-  let doneAll = 0;
-  for (const section of SECTIONS) {
-    const { total, done } = getSectionCounts(section.id, checked);
-    totalAll += total;
-    doneAll += done;
+// Group pending topics by section
+function groupBySection(
+  pendingTopics: ReturnType<typeof useSyllabusProgress>["pendingTopics"],
+) {
+  const map: Record<string, { title: string; items: string[] }> = {};
+  for (const pt of pendingTopics) {
+    if (!map[pt.sectionId])
+      map[pt.sectionId] = { title: pt.sectionTitle, items: [] };
+    const label = pt.subtopicLabel
+      ? `${pt.topicLabel} → ${pt.subtopicLabel}`
+      : pt.topicLabel;
+    map[pt.sectionId].items.push(label);
   }
-  const overallProgress =
-    totalAll > 0 ? Math.round((doneAll / totalAll) * 100) : 0;
+  return Object.entries(map);
+}
+
+export function SyllabusTrackerPage() {
+  const {
+    checked,
+    toggle,
+    sectionStats,
+    overallStats,
+    pendingTopics,
+    nextSuggestion,
+  } = useSyllabusProgress();
+
+  const toggleParent = useCallback(
+    (sectionId: string, topicId: string, subtopics: readonly string[]) => {
+      if (subtopics.length === 0) {
+        toggle(parentKey(sectionId, topicId));
+        return;
+      }
+      const allChecked = subtopics.every(
+        (_, i) => checked[subKey(sectionId, topicId, i)],
+      );
+      for (let i = 0; i < subtopics.length; i++) {
+        const k = subKey(sectionId, topicId, i);
+        // set desired state: if all checked → uncheck, else → check
+        if (Boolean(checked[k]) !== !allChecked) {
+          toggle(k);
+        }
+      }
+    },
+    [checked, toggle],
+  );
+
+  const grouped = groupBySection(pendingTopics);
 
   return (
-    <div className="max-w-[1200px] mx-auto px-4 sm:px-6 py-8">
+    <div className="max-w-[900px] mx-auto px-4 sm:px-6 py-8">
+      {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35 }}
+        className="mb-6"
       >
-        <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-1">
+        <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
           Syllabus Tracker
         </h1>
-        <p className="text-sm text-muted-foreground mb-6">
-          Track your TS LAWCET syllabus completion
+        <p className="text-sm text-muted-foreground mt-1">
+          {overallStats.done} of {overallStats.total} items completed
         </p>
       </motion.div>
 
-      {/* Overall completion card */}
+      {/* Overall progress card */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.05, duration: 0.35 }}
-        className="bg-white border border-border rounded-xl shadow-card p-5 mb-6"
+        className="bg-white border border-border rounded-xl shadow-card p-5 mb-5"
+        data-ocid="syllabus.overall.card"
       >
         <div className="flex items-center justify-between mb-3">
           <div>
@@ -205,29 +127,60 @@ export function SyllabusTrackerPage() {
               Overall Completion
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {doneAll} of {totalAll} items completed
+              {overallStats.done} of {overallStats.total} items completed
             </p>
           </div>
-          <span className="text-3xl font-bold" style={{ color: "#0F3554" }}>
-            {overallProgress}%
+          <span className="text-4xl font-bold" style={{ color: "#0F3554" }}>
+            {overallStats.percent}%
           </span>
         </div>
-        <Progress value={overallProgress} className="h-2.5" />
+        <Progress value={overallStats.percent} className="h-2.5" />
       </motion.div>
 
+      {/* Smart suggestion banner */}
+      <AnimatePresence>
+        {nextSuggestion && (
+          <motion.div
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ delay: 0.1, duration: 0.3 }}
+            className="mb-5 flex items-start gap-3 rounded-xl border border-[oklch(0.85_0.07_210)] bg-[oklch(0.97_0.03_210)] px-4 py-3.5"
+            data-ocid="syllabus.suggestion.card"
+          >
+            <div className="mt-0.5 rounded-md p-1.5 bg-[oklch(0.85_0.07_210)]">
+              <Zap size={14} style={{ color: "#0F3554" }} />
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-[#0F3554] uppercase tracking-wide mb-0.5">
+                Next Suggested Topic
+              </p>
+              <p className="text-sm text-foreground font-medium">
+                {nextSuggestion.subtopicLabel
+                  ? `${nextSuggestion.topicLabel} → ${nextSuggestion.subtopicLabel}`
+                  : nextSuggestion.topicLabel}{" "}
+                <span className="text-muted-foreground font-normal">
+                  in {nextSuggestion.sectionTitle}
+                </span>
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Accordion per subject */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1, duration: 0.35 }}
+        transition={{ delay: 0.12, duration: 0.35 }}
       >
         <Accordion
           type="multiple"
           defaultValue={["legal", "gk", "mental"]}
-          className="space-y-3"
+          className="space-y-3 mb-6"
         >
-          {SECTIONS.map((section) => {
-            const { total, done } = getSectionCounts(section.id, checked);
-            const prog = total > 0 ? Math.round((done / total) * 100) : 0;
+          {SECTIONS.map((section, si) => {
+            const stats = sectionStats(section.id);
             return (
               <AccordionItem
                 key={section.id}
@@ -249,20 +202,36 @@ export function SyllabusTrackerPage() {
                           {section.title}
                         </p>
                         <span className="text-xs text-muted-foreground mr-1">
-                          {done}/{total}
+                          {stats.done}/{stats.total}
                         </span>
                       </div>
                       <div className="flex items-center gap-2 mt-1.5">
-                        <Progress value={prog} className="h-1.5 flex-1" />
+                        <Progress
+                          value={stats.percent}
+                          className="h-1.5 flex-1"
+                        />
                         <span className="text-xs font-medium text-muted-foreground w-8 text-right">
-                          {prog}%
+                          {stats.percent}%
                         </span>
                       </div>
                     </div>
                   </div>
                 </AccordionTrigger>
+
                 <AccordionContent className="px-5 pb-5">
-                  <div className="space-y-0.5 pt-2">
+                  {/* Completion message inside panel */}
+                  <p className="text-xs text-muted-foreground mb-3 pt-1">
+                    You have completed{" "}
+                    <span
+                      className="font-semibold"
+                      style={{ color: "#0F3554" }}
+                    >
+                      {stats.percent}%
+                    </span>{" "}
+                    of {section.title}
+                  </p>
+
+                  <div className="space-y-0.5">
                     {section.topics.map((topic, ti) => {
                       const pk = parentKey(section.id, topic.id);
                       const hasSubs = topic.subtopics.length > 0;
@@ -278,17 +247,27 @@ export function SyllabusTrackerPage() {
                       const parentChecked = hasSubs
                         ? allSubsChecked
                         : !!checked[pk];
+                      const notStarted = hasSubs
+                        ? checkedSubs === 0
+                        : !checked[pk];
 
                       return (
-                        <div key={pk}>
-                          {/* Parent row */}
+                        <div
+                          key={pk}
+                          className={`rounded-lg ${
+                            notStarted
+                              ? "border-l-2 border-l-amber-300 bg-amber-50/60"
+                              : ""
+                          }`}
+                        >
+                          {/* Parent topic row */}
                           <label
-                            htmlFor={pk}
+                            htmlFor={`chk-${pk}`}
                             className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-secondary/50 transition-colors cursor-pointer"
                           >
                             <IndeterminateCheckbox
-                              data-ocid={`syllabus.${section.id}.checkbox.${ti + 1}`}
-                              id={pk}
+                              id={`chk-${pk}`}
+                              data-ocid={`syllabus.${section.id}.checkbox.${si * 10 + ti + 1}`}
                               checked={parentChecked}
                               indeterminate={someSubsChecked}
                               onCheckedChange={() =>
@@ -300,7 +279,7 @@ export function SyllabusTrackerPage() {
                               }
                             />
                             <span
-                              className={`text-sm font-medium ${
+                              className={`text-sm font-medium flex-1 ${
                                 parentChecked
                                   ? "line-through text-muted-foreground"
                                   : "text-foreground"
@@ -309,7 +288,7 @@ export function SyllabusTrackerPage() {
                               {topic.label}
                             </span>
                             {hasSubs && (
-                              <span className="ml-auto text-xs text-muted-foreground">
+                              <span className="text-xs text-muted-foreground">
                                 {checkedSubs}/{topic.subtopics.length}
                               </span>
                             )}
@@ -317,21 +296,19 @@ export function SyllabusTrackerPage() {
 
                           {/* Subtopic rows */}
                           {hasSubs && (
-                            <div className="pl-8 space-y-0.5">
-                              {topic.subtopics.map((sub, si) => {
-                                const sk = subKey(section.id, topic.id, si);
+                            <div className="pl-9 space-y-0.5 pb-1">
+                              {topic.subtopics.map((sub, si2) => {
+                                const sk = subKey(section.id, topic.id, si2);
                                 return (
                                   <label
                                     key={sk}
-                                    htmlFor={sk}
+                                    htmlFor={`chk-${sk}`}
                                     className="flex items-center gap-3 p-2 rounded-lg hover:bg-secondary/40 transition-colors cursor-pointer"
                                   >
                                     <Checkbox
-                                      id={sk}
+                                      id={`chk-${sk}`}
                                       checked={!!checked[sk]}
-                                      onCheckedChange={() =>
-                                        toggleSub(section.id, topic.id, si)
-                                      }
+                                      onCheckedChange={() => toggle(sk)}
                                     />
                                     <span
                                       className={`text-xs ${
@@ -356,6 +333,59 @@ export function SyllabusTrackerPage() {
             );
           })}
         </Accordion>
+      </motion.div>
+
+      {/* Pending Topics panel */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.18, duration: 0.35 }}
+        className="bg-white border border-border rounded-xl shadow-card p-5"
+        data-ocid="syllabus.pending.panel"
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-sm font-semibold text-foreground">
+            Pending Topics
+          </h2>
+          <Badge variant="secondary">{pendingTopics.length}</Badge>
+        </div>
+
+        {pendingTopics.length === 0 ? (
+          <div
+            className="text-center py-6"
+            data-ocid="syllabus.pending.empty_state"
+          >
+            <p className="text-2xl mb-2">🎉</p>
+            <p className="text-sm font-semibold text-foreground">
+              Congratulations!
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              You have completed the entire TS LAWCET syllabus!
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {grouped.map(([sectionId, group]) => (
+              <div key={sectionId}>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                  {group.title}
+                </p>
+                <ul className="space-y-1">
+                  {group.items.map((item) => (
+                    <li
+                      key={item}
+                      data-ocid="syllabus.pending.item.1"
+                      className="flex items-center gap-2 text-xs text-foreground"
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        )}
       </motion.div>
     </div>
   );
