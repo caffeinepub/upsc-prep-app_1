@@ -1,5 +1,6 @@
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useDailyProgress } from "@/hooks/useDailyProgress";
 import { BarChart2, TrendingUp } from "lucide-react";
 import type { Variants } from "motion/react";
 import { motion } from "motion/react";
@@ -57,46 +58,6 @@ const FALLBACK_TARGETS = [
   },
 ];
 
-const STAT_CARDS = [
-  {
-    id: "today_target",
-    label: "Today's Target",
-    value: "50 Questions",
-    sub: "60% completed",
-    progress: 60,
-    showBar: true,
-    color: "oklch(0.85 0.06 243)",
-  },
-  {
-    id: "questions_today",
-    label: "Questions Completed Today",
-    value: "31",
-    sub: "out of 50",
-    progress: null,
-    showBar: false,
-    color: "oklch(0.88 0.07 155)",
-  },
-  {
-    id: "mock_tests",
-    label: "Mock Tests Completed",
-    value: "3",
-    sub: "this week",
-    progress: null,
-    showBar: false,
-    color: "oklch(0.87 0.05 300)",
-  },
-  {
-    id: "accuracy",
-    label: "Accuracy %",
-    value: "74%",
-    sub: "+3% from last week",
-    progress: null,
-    showBar: false,
-    trend: true,
-    color: "oklch(0.88 0.07 75)",
-  },
-];
-
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
   show: { opacity: 1, transition: { staggerChildren: 0.07 } },
@@ -121,6 +82,7 @@ export function Dashboard({ setActivePage }: DashboardProps) {
   const { data: progressData, isLoading: progressLoading } = useStudyProgress();
   const { data: targetsData, isLoading: targetsLoading } = useDailyTargets();
   const toggleTarget = useToggleTarget();
+  const { dailyTarget, completedToday, percentComplete } = useDailyProgress();
 
   const displayName = profile?.displayName ?? "Rahul Sharma";
   const principal = identity?.getPrincipal().toString() ?? "";
@@ -138,6 +100,46 @@ export function Dashboard({ setActivePage }: DashboardProps) {
     subjects.reduce((sum, s) => sum + Number(s.completionPercentage), 0) /
       subjects.length,
   );
+
+  const statCards = [
+    {
+      id: "today_target",
+      label: "Today's Target",
+      value: `${dailyTarget} Questions`,
+      sub: `${percentComplete}% completed`,
+      progress: percentComplete,
+      showBar: true,
+      color: "oklch(0.85 0.06 243)",
+    },
+    {
+      id: "questions_today",
+      label: "Questions Completed Today",
+      value: String(completedToday),
+      sub: `out of ${dailyTarget}`,
+      progress: null,
+      showBar: false,
+      color: "oklch(0.88 0.07 155)",
+    },
+    {
+      id: "mock_tests",
+      label: "Mock Tests Completed",
+      value: "3",
+      sub: "this week",
+      progress: null,
+      showBar: false,
+      color: "oklch(0.87 0.05 300)",
+    },
+    {
+      id: "accuracy",
+      label: "Accuracy %",
+      value: "74%",
+      sub: "+3% from last week",
+      progress: null,
+      showBar: false,
+      trend: true,
+      color: "oklch(0.88 0.07 75)",
+    },
+  ];
 
   return (
     <div className="max-w-[1200px] mx-auto w-full px-4 sm:px-6 py-8">
@@ -168,7 +170,7 @@ export function Dashboard({ setActivePage }: DashboardProps) {
         animate="show"
         className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6"
       >
-        {STAT_CARDS.map((card) => (
+        {statCards.map((card) => (
           <motion.div
             key={card.id}
             variants={itemVariants}

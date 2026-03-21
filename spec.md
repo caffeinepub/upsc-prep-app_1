@@ -1,38 +1,28 @@
-# TS LAWCET PrepSage
+# TS LAWCET Prep
 
 ## Current State
-The app is a UPSC preparation dashboard with 6 subjects (History, Geography, Polity, Economy, Science & Tech, Current Affairs), a nav with Syllabus/Live Classes/Mock Tests/Study Materials/Profile links, daily targets, deadlines list, and an Internet Identity status card.
+Mock test system stores a `TestResult` per test (score, accuracy, timeTaken, bySubject, completedAt) in localStorage under `lawcet_result_<id>`. `MockTestsPage` shows test cards with latest score badge. `MockExamPage` has exam, results, and review phases, but review is only accessible immediately after a test — not from history. Questions and user answers are NOT persisted in the result object, so post-session review is impossible.
 
 ## Requested Changes (Diff)
 
 ### Add
-- LAWCET-specific stat cards on dashboard: Today's Target, Questions Completed Today, Mock Tests Completed, Accuracy %
-- New nav items: Dashboard, Mock Tests, Daily Practice, Syllabus Tracker, Progress
-- LAWCET section cards: Legal Aptitude, General Knowledge & Current Affairs, Mental Ability
-- Mock Tests page (basic)
-- Daily Practice page (basic)
-- Syllabus Tracker page (basic)
-- Progress page (basic)
+- `questions` and `answers` snapshot fields to `TestResult` interface and `saveResult` call so detailed history review is possible
+- `MockTestHistoryPage` component: a full history list + detail view
+  - History list shows all completed tests (Test 1, Test 2, ...), each card showing date, score (X/120), accuracy %, time taken
+  - Filter/sort controls: Sort by Latest, Sort by Highest Score
+  - Click any history card → detailed view: shows all 120 questions with user answer vs correct answer highlighted, explanations, same review UI as MockExamPage review phase
+- History tab/button on `MockTestsPage` to navigate to `MockTestHistoryPage`
 
 ### Modify
-- App branding from "PrepSage" to "LAWCET PrepSage" or "TS LAWCET"
-- Subject/section list reduced from 6 UPSC subjects to 3 LAWCET sections
-- Header navigation links updated to LAWCET nav items
-- Dashboard greeting and context updated to LAWCET
-- Daily targets updated to LAWCET-relevant tasks
-- QuickNav updated to LAWCET quick actions
+- `mockTestStorage.ts`: Add `questions` (Question array snapshot) and `answers` (Record<number,number>) to `TestResult` interface; update `saveResult` type
+- `MockExamPage.tsx`: Pass `questions` and `answers` to `saveResult` when entering results phase
+- `MockTestsPage.tsx`: Add a "History" tab toggle at top to switch between test cards and history view
 
 ### Remove
-- UPSC-specific content (NCERT Books, mind maps references)
-- Deadline list (replaced with stat cards)
-- IIStatusCard can remain (auth still Internet Identity)
+- Nothing removed
 
 ## Implementation Plan
-1. Update Header nav links to: Dashboard, Mock Tests, Daily Practice, Syllabus Tracker, Progress
-2. Update SubjectCard metadata to map to 3 LAWCET sections using existing 3 backend subjects
-3. Add stat cards row in Dashboard (Today's Target, Questions Completed Today, Mock Tests Completed, Accuracy %)
-4. Update Dashboard fallback data for LAWCET subjects
-5. Update QuickNav for LAWCET quick actions
-6. Add stub page components for Mock Tests, Daily Practice, Syllabus Tracker, Progress
-7. Wire navigation state in App.tsx to show correct page
-8. Update branding to TS LAWCET
+1. Update `mockTestStorage.ts`: add `questions` and `answers` to `TestResult`; keep backward-compatible (optional fields)
+2. Update `MockExamPage.tsx`: include `questions` and `answers` in the `saveResult` call
+3. Create `MockTestHistoryPage.tsx`: history list with sort filter, click-to-detail with full question review (reuse review UI logic from MockExamPage)
+4. Update `MockTestsPage.tsx`: add tabs (Tests / History) at the top; render `MockTestHistoryPage` when History tab active
