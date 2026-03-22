@@ -49,7 +49,8 @@ function selectQuestions(): Question[] {
     ...pick(bySubject("Legal Aptitude"), 60),
     ...pick(bySubject("General Knowledge"), 30),
     ...pick(bySubject("Mental Ability"), 30),
-  ].sort(() => Math.random() - 0.5);
+  ];
+  // DO NOT shuffle the combined array — order must be Legal → GK → Mental
 }
 
 function formatTime(sec: number): string {

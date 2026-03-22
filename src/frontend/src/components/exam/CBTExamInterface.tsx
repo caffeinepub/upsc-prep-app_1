@@ -21,7 +21,6 @@ import {
   Send,
   X,
 } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 export interface CBTQuestion {
@@ -112,10 +111,10 @@ function getPaletteState(
 }
 
 const PALETTE_CLASSES: Record<PaletteState, string> = {
-  "not-visited": "bg-gray-200 text-gray-600",
+  "not-visited": "bg-gray-200 text-gray-500",
   answered: "bg-green-500 text-white",
-  "not-answered": "bg-rose-500 text-white",
-  marked: "bg-amber-400 text-white",
+  "not-answered": "bg-red-500 text-white",
+  marked: "bg-yellow-400 text-gray-800",
 };
 
 export function CBTExamInterface({
@@ -199,7 +198,6 @@ export function CBTExamInterface({
       });
     }, 1000);
     return () => clearInterval(timer);
-    // biome-ignore lint/correctness/useExhaustiveDependencies: intentional
   }, []);
 
   const goTo = useCallback((idx: number) => {
@@ -261,7 +259,7 @@ export function CBTExamInterface({
 
   return (
     <div
-      className="fixed inset-0 z-[9999] flex flex-col bg-gray-50"
+      className="fixed inset-0 z-[9999] flex flex-col bg-white"
       data-ocid="cbt_exam.panel"
     >
       {/* TOP BAR */}
@@ -289,9 +287,7 @@ export function CBTExamInterface({
         <div
           className={cn(
             "flex items-center gap-1.5 font-mono text-sm font-bold px-3 py-1.5 rounded-lg flex-shrink-0",
-            timeCritical
-              ? "bg-red-500 text-white animate-pulse"
-              : "bg-white/15 text-white",
+            timeCritical ? "bg-red-600 text-white" : "bg-white/15 text-white",
           )}
         >
           <Clock size={14} />
@@ -329,7 +325,7 @@ export function CBTExamInterface({
                 key={sec.key}
                 onClick={() => goToSection(sec)}
                 className={cn(
-                  "relative flex flex-col items-center px-3 sm:px-6 py-2.5 text-xs sm:text-sm font-semibold transition-all border-b-2",
+                  "relative flex flex-col items-center px-3 sm:px-6 py-2.5 text-xs sm:text-sm font-semibold border-b-2",
                   isActive
                     ? "border-current"
                     : "border-transparent text-gray-400 hover:text-gray-600",
@@ -365,83 +361,70 @@ export function CBTExamInterface({
       {/* BODY */}
       <div className="flex flex-1 overflow-hidden">
         {/* LEFT: Question Panel */}
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={currentIndex}
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.18 }}
-              className="max-w-2xl mx-auto"
-            >
-              <div className="flex items-center gap-2 mb-4">
-                <Badge
-                  className="text-xs border-0 text-white"
-                  style={{ background: currentSection.color }}
-                >
-                  {q.subject}
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 bg-white">
+          <div key={currentIndex} className="max-w-2xl mx-auto">
+            <div className="flex items-center gap-2 mb-4">
+              <Badge
+                className="text-xs border-0 text-white"
+                style={{ background: currentSection.color }}
+              >
+                {q.subject}
+              </Badge>
+              <span className="text-xs text-gray-500">
+                Question {currentIndex + 1} of {questions.length}
+              </span>
+              {isMarked && (
+                <Badge className="text-xs bg-yellow-100 text-yellow-700 border-0 gap-1">
+                  <Flag size={10} /> Marked
                 </Badge>
-                <span className="text-xs text-gray-500">
-                  Question {currentIndex + 1} of {questions.length}
-                </span>
-                {isMarked && (
-                  <Badge className="text-xs bg-amber-100 text-amber-700 border-0 gap-1">
-                    <Flag size={10} /> Marked
-                  </Badge>
-                )}
-              </div>
+              )}
+            </div>
 
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 sm:p-6 mb-4">
-                <p className="text-sm sm:text-base font-medium leading-relaxed text-gray-800 whitespace-pre-line">
-                  {q.question}
-                </p>
-              </div>
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 sm:p-8 mb-4">
+              <p className="text-base sm:text-lg font-medium leading-relaxed text-gray-900 whitespace-pre-line">
+                {q.question}
+              </p>
+            </div>
 
-              <div className="space-y-2.5" data-ocid="cbt_exam.card">
-                {q.options.map((opt, idx) => {
-                  const selected = answers[currentIndex] === idx;
-                  return (
-                    <button
-                      type="button"
-                      key={opt}
-                      data-ocid={`cbt_exam.radio.${idx + 1}`}
-                      onClick={() => handleAnswer(idx)}
+            <div className="space-y-2.5" data-ocid="cbt_exam.card">
+              {q.options.map((opt, idx) => {
+                const selected = answers[currentIndex] === idx;
+                return (
+                  <button
+                    type="button"
+                    key={opt}
+                    data-ocid={`cbt_exam.radio.${idx + 1}`}
+                    onClick={() => handleAnswer(idx)}
+                    className={cn(
+                      "w-full text-left px-5 py-4 rounded-xl border-2 text-sm flex items-center gap-3",
+                      selected
+                        ? "border-blue-600 bg-blue-50"
+                        : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50",
+                    )}
+                  >
+                    <span
                       className={cn(
-                        "w-full text-left px-4 py-3 rounded-xl border-2 text-sm transition-all duration-150 flex items-center gap-3",
+                        "inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold flex-shrink-0",
                         selected
-                          ? "bg-blue-50 font-medium"
-                          : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50",
+                          ? "bg-blue-600 text-white"
+                          : "bg-gray-100 text-gray-500",
                       )}
-                      style={
-                        selected ? { borderColor: currentSection.color } : {}
-                      }
                     >
-                      <span
-                        className="inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold flex-shrink-0 text-white"
-                        style={
-                          selected
-                            ? { background: currentSection.color }
-                            : { background: "#e5e7eb", color: "#6b7280" }
-                        }
-                      >
-                        {String.fromCharCode(65 + idx)}
-                      </span>
-                      <span
-                        style={
-                          selected
-                            ? { color: currentSection.color }
-                            : { color: "#374151" }
-                        }
-                      >
-                        {opt}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </motion.div>
-          </AnimatePresence>
+                      {String.fromCharCode(65 + idx)}
+                    </span>
+                    <span
+                      className={cn(
+                        "font-medium",
+                        selected ? "text-blue-900" : "text-gray-700",
+                      )}
+                    >
+                      {opt}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </main>
 
         {/* RIGHT: Question Palette (desktop) */}
@@ -457,11 +440,11 @@ export function CBTExamInterface({
                 Answered
               </span>
               <span className="flex items-center gap-1">
-                <span className="w-3 h-3 rounded-sm bg-rose-500 inline-block" />{" "}
+                <span className="w-3 h-3 rounded-sm bg-red-500 inline-block" />{" "}
                 Not Answered
               </span>
               <span className="flex items-center gap-1">
-                <span className="w-3 h-3 rounded-sm bg-amber-400 inline-block" />{" "}
+                <span className="w-3 h-3 rounded-sm bg-yellow-400 inline-block" />{" "}
                 Flagged
               </span>
               <span className="flex items-center gap-1">
@@ -475,15 +458,15 @@ export function CBTExamInterface({
                 <div className="font-bold text-green-700">{answered}</div>
                 <div className="text-green-600 text-[10px]">Answered</div>
               </div>
-              <div className="bg-rose-50 rounded-lg px-2 py-1.5 text-center">
-                <div className="font-bold text-rose-700">
+              <div className="bg-red-50 rounded-lg px-2 py-1.5 text-center">
+                <div className="font-bold text-red-700">
                   {Math.max(0, visited.size - answered - markedCount)}
                 </div>
-                <div className="text-rose-600 text-[10px]">Not Answered</div>
+                <div className="text-red-600 text-[10px]">Not Answered</div>
               </div>
-              <div className="bg-amber-50 rounded-lg px-2 py-1.5 text-center">
-                <div className="font-bold text-amber-700">{markedCount}</div>
-                <div className="text-amber-600 text-[10px]">Flagged</div>
+              <div className="bg-yellow-50 rounded-lg px-2 py-1.5 text-center">
+                <div className="font-bold text-yellow-700">{markedCount}</div>
+                <div className="text-yellow-600 text-[10px]">Flagged</div>
               </div>
               <div className="bg-gray-50 rounded-lg px-2 py-1.5 text-center">
                 <div className="font-bold text-gray-600">
@@ -530,7 +513,7 @@ export function CBTExamInterface({
                           data-ocid={`cbt_exam.item.${idx + 1}`}
                           onClick={() => goTo(idx)}
                           className={cn(
-                            "w-10 h-10 rounded-lg text-xs font-semibold transition-all",
+                            "w-10 h-10 rounded-lg text-xs font-semibold",
                             PALETTE_CLASSES[state],
                             isCurrent &&
                               "ring-2 ring-offset-1 ring-offset-white",
@@ -567,7 +550,7 @@ export function CBTExamInterface({
       </div>
 
       {/* BOTTOM BAR */}
-      <footer className="flex-shrink-0 flex items-center justify-between gap-2 px-4 py-3 bg-white border-t shadow-sm">
+      <footer className="flex-shrink-0 flex items-center justify-between gap-2 px-5 py-3 bg-white border-t shadow-sm">
         <Button
           data-ocid="cbt_exam.pagination_prev"
           variant="outline"
@@ -587,8 +570,8 @@ export function CBTExamInterface({
           className={cn(
             "gap-1.5",
             isMarked
-              ? "bg-amber-400 hover:bg-amber-500 text-white border-amber-400"
-              : "border-amber-300 text-amber-600 hover:bg-amber-50",
+              ? "bg-yellow-400 hover:bg-yellow-500 text-gray-800 border-yellow-400"
+              : "border-yellow-300 text-yellow-700 hover:bg-yellow-50",
           )}
         >
           <Flag size={13} />
@@ -620,117 +603,110 @@ export function CBTExamInterface({
         )}
       </footer>
 
-      {/* Mobile Palette Bottom Sheet */}
-      <AnimatePresence>
-        {paletteOpen && (
-          <motion.div
-            data-ocid="cbt_exam.modal"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[10000] bg-black/50 md:hidden"
-            onClick={() => setPaletteOpen(false)}
+      {/* Mobile Palette Bottom Sheet — no animation */}
+      {paletteOpen && (
+        <div
+          data-ocid="cbt_exam.modal"
+          aria-modal="true"
+          aria-label="Question palette overlay"
+          className="fixed inset-0 z-[10000] bg-black/50 md:hidden"
+          onClick={() => setPaletteOpen(false)}
+          onKeyDown={(e) => e.key === "Escape" && setPaletteOpen(false)}
+        >
+          <div
+            role="presentation"
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+            className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl p-4 max-h-[75vh] flex flex-col"
           >
-            <motion.div
-              initial={{ y: "100%" }}
-              animate={{ y: 0 }}
-              exit={{ y: "100%" }}
-              transition={{ type: "spring", damping: 25 }}
-              onClick={(e) => e.stopPropagation()}
-              className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl p-4 max-h-[75vh] flex flex-col"
-            >
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-sm font-semibold text-gray-700">
-                  Exam Palette
-                </p>
-                <Button
-                  data-ocid="cbt_exam.close_button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 w-7 p-0"
-                  onClick={() => setPaletteOpen(false)}
-                >
-                  <X size={14} />
-                </Button>
-              </div>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm font-semibold text-gray-700">
+                Exam Palette
+              </p>
+              <Button
+                data-ocid="cbt_exam.close_button"
+                variant="ghost"
+                size="sm"
+                className="h-7 w-7 p-0"
+                onClick={() => setPaletteOpen(false)}
+              >
+                <X size={14} />
+              </Button>
+            </div>
 
-              <div className="flex gap-3 flex-wrap text-[11px] mb-3">
-                {(
-                  [
-                    ["not-visited", "Not Visited"],
-                    ["answered", "Answered"],
-                    ["not-answered", "Not Answered"],
-                    ["marked", "Flagged"],
-                  ] as [PaletteState, string][]
-                ).map(([state, label]) => (
-                  <span key={state} className="flex items-center gap-1">
-                    <span
-                      className={cn(
-                        "w-3 h-3 rounded-sm",
-                        PALETTE_CLASSES[state],
-                      )}
-                    />
-                    {label}
-                  </span>
-                ))}
-              </div>
+            <div className="flex gap-3 flex-wrap text-[11px] mb-3">
+              {(
+                [
+                  ["not-visited", "Not Visited"],
+                  ["answered", "Answered"],
+                  ["not-answered", "Not Answered"],
+                  ["marked", "Flagged"],
+                ] as [PaletteState, string][]
+              ).map(([state, label]) => (
+                <span key={state} className="flex items-center gap-1">
+                  <span
+                    className={cn("w-3 h-3 rounded-sm", PALETTE_CLASSES[state])}
+                  />
+                  {label}
+                </span>
+              ))}
+            </div>
 
-              <div className="overflow-y-auto space-y-4">
-                {sectionStats.map((sec) => {
-                  if (sec.total === 0) return null;
-                  return (
-                    <div key={sec.key}>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span
-                          className="text-[10px] font-bold uppercase"
-                          style={{ color: sec.color }}
-                        >
-                          {sec.fullName}
-                        </span>
-                        <span className="text-[10px] text-gray-400">
-                          {sec.answered}/{sec.total}
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-8 gap-1.5">
-                        {Array.from(
-                          { length: sec.total },
-                          (_, i) => sec.start + i,
-                        ).map((idx) => {
-                          const state = getPaletteState(
-                            idx,
-                            answers,
-                            marked,
-                            visited,
-                          );
-                          return (
-                            <button
-                              type="button"
-                              key={idx}
-                              data-ocid={`cbt_exam.item.${idx + 1}`}
-                              onClick={() => {
-                                goTo(idx);
-                                setPaletteOpen(false);
-                              }}
-                              className={cn(
-                                "w-9 h-9 rounded-lg text-xs font-semibold transition-all",
-                                PALETTE_CLASSES[state],
-                                idx === currentIndex &&
-                                  "ring-2 ring-offset-1 ring-[#0F3554]",
-                              )}
-                            >
-                              {idx + 1}
-                            </button>
-                          );
-                        })}
-                      </div>
+            <div className="overflow-y-auto space-y-4">
+              {sectionStats.map((sec) => {
+                if (sec.total === 0) return null;
+                return (
+                  <div key={sec.key}>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span
+                        className="text-[10px] font-bold uppercase"
+                        style={{ color: sec.color }}
+                      >
+                        {sec.fullName}
+                      </span>
+                      <span className="text-[10px] text-gray-400">
+                        {sec.answered}/{sec.total}
+                      </span>
                     </div>
-                  );
-                })}
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+                    <div className="grid grid-cols-8 gap-1.5">
+                      {Array.from(
+                        { length: sec.total },
+                        (_, i) => sec.start + i,
+                      ).map((idx) => {
+                        const state = getPaletteState(
+                          idx,
+                          answers,
+                          marked,
+                          visited,
+                        );
+                        return (
+                          <button
+                            type="button"
+                            key={idx}
+                            data-ocid={`cbt_exam.item.${idx + 1}`}
+                            onClick={() => {
+                              goTo(idx);
+                              setPaletteOpen(false);
+                            }}
+                            className={cn(
+                              "w-9 h-9 rounded-lg text-xs font-semibold",
+                              PALETTE_CLASSES[state],
+                              idx === currentIndex &&
+                                "ring-2 ring-offset-1 ring-[#0F3554]",
+                            )}
+                          >
+                            {idx + 1}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Exit Confirmation Dialog */}
       <AlertDialog open={showExitDialog} onOpenChange={setShowExitDialog}>

@@ -42,6 +42,18 @@ const SUBJECT_BAR_COLOR: Record<string, string> = {
   "Mental Ability": "bg-purple-500",
 };
 
+function sortBySection(qs: PYQQuestion[]): PYQQuestion[] {
+  const order: Record<string, number> = {
+    "Legal Aptitude": 0,
+    "GK & Current Affairs": 1,
+    "General Knowledge": 1,
+    "Mental Ability": 2,
+  };
+  return [...qs].sort(
+    (a, b) => (order[a.subject] ?? 3) - (order[b.subject] ?? 3),
+  );
+}
+
 interface PYQExamPageProps {
   year?: number;
   title?: string;
@@ -56,9 +68,9 @@ export function PYQExamPage({
   onExit,
 }: PYQExamPageProps) {
   const [questions] = useState<PYQQuestion[]>(() => {
-    if (propQuestions) return propQuestions;
-    if (year === 0) return getAllPYQQuestions();
-    return getQuestionsByYear(year ?? 0);
+    if (propQuestions) return sortBySection(propQuestions);
+    if (year === 0) return sortBySection(getAllPYQQuestions());
+    return sortBySection(getQuestionsByYear(year ?? 0));
   });
 
   const [answers, setAnswers] = useState<Record<number, number>>({});
