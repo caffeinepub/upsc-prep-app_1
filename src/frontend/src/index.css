@@ -58,6 +58,15 @@
   * {
     @apply border-border;
   }
+  html,
+  body {
+    height: 100%;
+    overflow-y: auto;
+    scroll-behavior: smooth;
+  }
+  #root {
+    height: 100%;
+  }
   body {
     @apply bg-background text-foreground;
     font-family: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;

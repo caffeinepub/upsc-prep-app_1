@@ -919,7 +919,7 @@ export function MockExamPage({
         </span>
       </header>
 
-      <ScrollArea className="h-[calc(100vh-56px)]">
+      <ScrollArea>
         <div className="max-w-2xl mx-auto px-4 py-6">
           <div className="flex gap-1.5 flex-wrap mb-5">
             {questions.map((q, idx) => {

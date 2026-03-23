@@ -1,25 +1,27 @@
 # TS LAWCET Prep
 
 ## Current State
-The app has 7 PYQ Mock Tests and 6 AI Mock Tests. Tests 5, 6, 7 use expansion data files (pyqExpansion56.ts, pyqExpansion7.ts). The CBTExamInterface requests fullscreen via the Fullscreen API. App.tsx hides the nav when `examActive` is true.
+The app has a sidebar layout with `flex h-screen overflow-hidden` on the root div and `overflow-hidden` on the inner column wrapper. The `<main>` element uses `flex-1 overflow-y-auto` for scrolling. On mobile, `h-screen` doesn't account for browser chrome, causing content to be clipped. The inner column's `overflow-hidden` interferes with scroll context. MockExamPage review phase uses `h-[calc(100vh-56px)]` on a ScrollArea which double-constrains the review list. `index.css` has no explicit rules for `html`, `body`, or `#root`.
 
 ## Requested Changes (Diff)
 
 ### Add
-- Normalize all subject names in pyqExpansion56.ts: change `"General Knowledge"` → `"GK & Current Affairs"` to match the rest of the system
-- Graceful fullscreen fallback for iOS Safari (which doesn't support `requestFullscreen`)
+- `html, body, #root { height: 100%; }` in `index.css`
+- `scroll-behavior: smooth` on `html`
 
 ### Modify
-- CBTExamInterface: wrap fullscreen request in try/catch with webkit prefix support (`webkitRequestFullscreen`), and add a CSS fallback so the exam fills the screen even without fullscreen API
-- PYQExamPage: ensure sortBySection handles both "General Knowledge" and "GK & Current Affairs" (already done, verify)
-- MockTestsPage: fix potential state loss on `examActive` re-render — move `activeExam` initialization so it's stable
-- App.tsx: ensure the exam container uses `position: fixed; inset: 0` to truly cover the viewport on mobile without relying on fullscreen API
+- `App.tsx` root div: change `h-screen overflow-hidden` → `h-dvh` (dynamic viewport height, no overflow-hidden)
+- `App.tsx` inner column wrapper: remove `overflow-hidden`, keep `flex-1 flex flex-col min-w-0`
+- `App.tsx` `<main>` non-exam: keep `flex-1 overflow-y-auto pb-16 md:pb-0`
+- `MockExamPage.tsx`: replace `h-[calc(100vh-56px)]` on ScrollArea in review phase with `flex-1` or `h-full` so it fills its container naturally
+- `PYQExamPage.tsx`: same fix if similar ScrollArea pattern exists
 
 ### Remove
-- Nothing
+- `overflow-hidden` from root app container
+- `overflow-hidden` from inner column wrapper
 
 ## Implementation Plan
-1. In pyqExpansion56.ts: replace all `subject: "General Knowledge"` with `subject: "GK & Current Affairs"`
-2. In CBTExamInterface.tsx: improve fullscreen request to include webkit prefix and handle iOS gracefully; make the exam container `position: fixed; inset: 0; z-index: 9999` as a CSS fallback
-3. In App.tsx: when examActive, use `position: fixed; inset: 0` container so nav is always hidden without fullscreen API
-4. Validate and build
+1. Update `index.css` with html/body/#root scroll rules
+2. Fix `App.tsx` root and column wrappers
+3. Fix `MockExamPage.tsx` review ScrollArea height
+4. Validate build

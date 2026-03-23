@@ -81,41 +81,54 @@ function AppContent() {
     }
   };
 
-  if (examActive) {
-    return (
-      <div
-        style={{
-          position: "fixed",
-          inset: 0,
-          overflow: "hidden",
-          background: "#F5F7FA",
-          zIndex: 9997,
-        }}
-      >
-        {renderPage()}
-      </div>
-    );
-  }
-
+  // IMPORTANT: renderPage() must always be at the SAME position in the tree.
+  // Using CSS to hide chrome during exam instead of conditional rendering
+  // prevents React from unmounting/remounting page components (which would
+  // cause exam state to be lost when examActive flips).
   return (
-    <div
-      className="flex h-screen overflow-hidden"
-      style={{ background: "#F5F7FA" }}
-    >
-      <Sidebar
-        activePage={activePage}
-        setActivePage={handleSetActivePage}
-        mobileOpen={sidebarOpen}
-        onMobileClose={() => setSidebarOpen(false)}
-      />
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <TopBar onMenuClick={() => setSidebarOpen(true)} />
-        {/* pb-16 on mobile so content doesn't hide behind the bottom nav */}
-        <main className="flex-1 overflow-y-auto pb-16 md:pb-0">
+    <div className="flex h-dvh" style={{ background: "#F5F7FA" }}>
+      {/* Sidebar hidden during exam, NOT removed */}
+      <div style={examActive ? { display: "none" } : undefined}>
+        <Sidebar
+          activePage={activePage}
+          setActivePage={handleSetActivePage}
+          mobileOpen={sidebarOpen}
+          onMobileClose={() => setSidebarOpen(false)}
+        />
+      </div>
+
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* TopBar hidden during exam, NOT removed */}
+        <div style={examActive ? { display: "none" } : undefined}>
+          <TopBar onMenuClick={() => setSidebarOpen(true)} />
+        </div>
+
+        {/* main always at same DOM position — only styling changes */}
+        <main
+          className={examActive ? "" : "flex-1 overflow-y-auto pb-16 md:pb-0"}
+          style={
+            examActive
+              ? {
+                  position: "fixed",
+                  inset: 0,
+                  overflow: "hidden",
+                  background: "#F5F7FA",
+                  zIndex: 9997,
+                }
+              : undefined
+          }
+        >
           {renderPage()}
         </main>
       </div>
-      <BottomNav activePage={activePage} setActivePage={handleSetActivePage} />
+
+      {/* BottomNav hidden during exam, NOT removed */}
+      <div style={examActive ? { display: "none" } : undefined}>
+        <BottomNav
+          activePage={activePage}
+          setActivePage={handleSetActivePage}
+        />
+      </div>
     </div>
   );
 }

@@ -35,7 +35,7 @@ actor {
     #notFound;
   };
 
-  let users = Map.empty<Text, InternalUserProfile>();
+  stable var users = Map.empty<Text, InternalUserProfile>();
 
   // Public registration - anyone can register
   public shared ({ caller }) func registerUser(name : Text, email : Text, passwordHash : Text) : async RegisterUserResult {
@@ -73,7 +73,6 @@ actor {
   };
 
   // Public update - anyone can update any user's name
-  // This matches the user requirement of "no authentication/authorization needed"
   public shared ({ caller }) func updateUserName(email : Text, name : Text) : async UpdateUserNameResult {
     let normalizedEmail = email.toLower();
     switch (users.get(normalizedEmail)) {
