@@ -8,6 +8,12 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import {
+  CA_CATEGORIES,
+  CA_MONTHS,
+  caMonthKey,
+  caTopicKey,
+} from "@/data/caData";
+import {
   SECTIONS,
   parentKey,
   subKey,
@@ -48,7 +54,6 @@ function IndeterminateCheckbox({
   );
 }
 
-// Group pending topics by section
 function groupBySection(
   pendingTopics: ReturnType<typeof useSyllabusProgress>["pendingTopics"],
 ) {
@@ -62,6 +67,220 @@ function groupBySection(
     map[pt.sectionId].items.push(label);
   }
   return Object.entries(map);
+}
+
+// Current Affairs Section Component
+function CurrentAffairsSection({
+  checked,
+  toggle,
+}: {
+  checked: Record<string, boolean>;
+  toggle: (key: string) => void;
+}) {
+  // Overall CA progress
+  let caTotal = 0;
+  let caDone = 0;
+  for (const cat of CA_CATEGORIES) {
+    caTotal += cat.topics.length + CA_MONTHS.length;
+    for (let i = 0; i < cat.topics.length; i++) {
+      if (checked[caTopicKey(cat.id, i)]) caDone += 1;
+    }
+    for (let m = 0; m < CA_MONTHS.length; m++) {
+      if (checked[caMonthKey(cat.id, m)]) caDone += 1;
+    }
+  }
+  const caPercent = caTotal > 0 ? Math.round((caDone / caTotal) * 100) : 0;
+
+  // Monthly completion % (across all categories)
+  const totalMonthSlots = CA_CATEGORIES.length * CA_MONTHS.length;
+  let doneMonthSlots = 0;
+  for (const cat of CA_CATEGORIES) {
+    for (let m = 0; m < CA_MONTHS.length; m++) {
+      if (checked[caMonthKey(cat.id, m)]) doneMonthSlots += 1;
+    }
+  }
+  const monthPercent =
+    totalMonthSlots > 0
+      ? Math.round((doneMonthSlots / totalMonthSlots) * 100)
+      : 0;
+
+  return (
+    <AccordionItem
+      value="current_affairs"
+      className="border border-border rounded-xl bg-white shadow-card overflow-hidden"
+    >
+      <AccordionTrigger className="px-5 py-4 hover:no-underline">
+        <div className="flex items-center gap-3 flex-1 mr-3">
+          <div
+            className="w-9 h-9 rounded-lg flex items-center justify-center text-base flex-shrink-0"
+            style={{ background: "oklch(0.90 0.07 55)" }}
+          >
+            📰
+          </div>
+          <div className="flex-1 text-left">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-foreground">
+                Current Affairs (Last 12 Months)
+              </p>
+              <span className="text-xs text-muted-foreground mr-1">
+                {caDone}/{caTotal}
+              </span>
+            </div>
+            <div className="flex items-center gap-2 mt-1.5">
+              <Progress value={caPercent} className="h-1.5 flex-1" />
+              <span className="text-xs font-medium text-muted-foreground w-8 text-right">
+                {caPercent}%
+              </span>
+            </div>
+          </div>
+        </div>
+      </AccordionTrigger>
+
+      <AccordionContent className="px-5 pb-5">
+        {/* Stats row */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5 pt-1">
+          <div className="bg-slate-50 rounded-lg p-3 text-center">
+            <p className="text-2xl font-bold" style={{ color: "#0F3554" }}>
+              {caPercent}%
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">Overall CA</p>
+          </div>
+          <div className="bg-slate-50 rounded-lg p-3 text-center">
+            <p className="text-2xl font-bold text-amber-600">{monthPercent}%</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Monthly</p>
+          </div>
+          <div className="bg-slate-50 rounded-lg p-3 text-center col-span-2 sm:col-span-1">
+            <p className="text-2xl font-bold text-emerald-600">
+              {CA_CATEGORIES.length}
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">Categories</p>
+          </div>
+        </div>
+
+        {/* Categories */}
+        <Accordion type="multiple" className="space-y-2">
+          {CA_CATEGORIES.map((cat) => {
+            // Category topic stats
+            const topicDone = cat.topics.filter(
+              (_, i) => checked[caTopicKey(cat.id, i)],
+            ).length;
+            const monthDone = CA_MONTHS.filter(
+              (_, m) => checked[caMonthKey(cat.id, m)],
+            ).length;
+            const catTotal = cat.topics.length + CA_MONTHS.length;
+            const catDone = topicDone + monthDone;
+            const catPercent =
+              catTotal > 0 ? Math.round((catDone / catTotal) * 100) : 0;
+
+            return (
+              <AccordionItem
+                key={cat.id}
+                value={cat.id}
+                className="border border-border rounded-lg overflow-hidden"
+              >
+                <AccordionTrigger className="px-4 py-3 hover:no-underline bg-slate-50/80">
+                  <div className="flex items-center gap-2.5 flex-1 mr-2">
+                    <span
+                      className="w-7 h-7 rounded-md flex items-center justify-center text-sm flex-shrink-0"
+                      style={{ background: cat.color }}
+                    >
+                      {cat.icon}
+                    </span>
+                    <div className="flex-1 text-left">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-medium text-foreground">
+                          {cat.title}
+                        </p>
+                        <span className="text-xs text-muted-foreground mr-1">
+                          {catDone}/{catTotal}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Progress value={catPercent} className="h-1 flex-1" />
+                        <span className="text-xs text-muted-foreground w-8 text-right">
+                          {catPercent}%
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </AccordionTrigger>
+
+                <AccordionContent className="px-4 pb-4">
+                  {/* Topics */}
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mt-3 mb-2">
+                    Topics ({topicDone}/{cat.topics.length})
+                  </p>
+                  <div className="space-y-1 mb-4">
+                    {cat.topics.map((topic, i) => {
+                      const tk = caTopicKey(cat.id, i);
+                      return (
+                        <label
+                          key={tk}
+                          htmlFor={`chk-${tk}`}
+                          className={`flex items-center gap-3 p-2 rounded-lg hover:bg-secondary/40 transition-colors cursor-pointer ${
+                            !checked[tk]
+                              ? "border-l-2 border-l-amber-300 bg-amber-50/60"
+                              : ""
+                          }`}
+                        >
+                          <Checkbox
+                            id={`chk-${tk}`}
+                            checked={!!checked[tk]}
+                            onCheckedChange={() => toggle(tk)}
+                          />
+                          <span
+                            className={`text-sm ${
+                              checked[tk]
+                                ? "line-through text-muted-foreground"
+                                : "text-foreground"
+                            }`}
+                          >
+                            {topic}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+
+                  {/* Monthly tracking */}
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                    Monthly Tracking ({monthDone}/{CA_MONTHS.length})
+                  </p>
+                  <div className="grid grid-cols-4 sm:grid-cols-6 gap-1.5">
+                    {CA_MONTHS.map((month, m) => {
+                      const mk = caMonthKey(cat.id, m);
+                      const isDone = !!checked[mk];
+                      return (
+                        <button
+                          type="button"
+                          key={mk}
+                          onClick={() => toggle(mk)}
+                          className={`flex flex-col items-center justify-center p-2 rounded-lg border text-xs font-medium transition-all ${
+                            isDone
+                              ? "bg-emerald-100 border-emerald-300 text-emerald-700"
+                              : "bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100"
+                          }`}
+                        >
+                          <span className="text-sm">{isDone ? "✓" : "○"}</span>
+                          <span>{month}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    <span className="inline-block w-3 h-3 rounded-sm bg-amber-100 border border-amber-300 mr-1 align-middle" />
+                    Pending
+                    <span className="inline-block w-3 h-3 rounded-sm bg-emerald-100 border border-emerald-300 ml-3 mr-1 align-middle" />
+                    Done
+                  </p>
+                </AccordionContent>
+              </AccordionItem>
+            );
+          })}
+        </Accordion>
+      </AccordionContent>
+    </AccordionItem>
+  );
 }
 
 export function SyllabusTrackerPage() {
@@ -85,7 +304,6 @@ export function SyllabusTrackerPage() {
       );
       for (let i = 0; i < subtopics.length; i++) {
         const k = subKey(sectionId, topicId, i);
-        // set desired state: if all checked → uncheck, else → check
         if (Boolean(checked[k]) !== !allChecked) {
           toggle(k);
         }
@@ -219,7 +437,6 @@ export function SyllabusTrackerPage() {
                 </AccordionTrigger>
 
                 <AccordionContent className="px-5 pb-5">
-                  {/* Completion message inside panel */}
                   <p className="text-xs text-muted-foreground mb-3 pt-1">
                     You have completed{" "}
                     <span
@@ -260,7 +477,6 @@ export function SyllabusTrackerPage() {
                               : ""
                           }`}
                         >
-                          {/* Parent topic row */}
                           <label
                             htmlFor={`chk-${pk}`}
                             className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-secondary/50 transition-colors cursor-pointer"
@@ -294,7 +510,6 @@ export function SyllabusTrackerPage() {
                             )}
                           </label>
 
-                          {/* Subtopic rows */}
                           {hasSubs && (
                             <div className="pl-9 space-y-0.5 pb-1">
                               {topic.subtopics.map((sub, si2) => {
@@ -332,6 +547,9 @@ export function SyllabusTrackerPage() {
               </AccordionItem>
             );
           })}
+
+          {/* Current Affairs special section */}
+          <CurrentAffairsSection checked={checked} toggle={toggle} />
         </Accordion>
       </motion.div>
 

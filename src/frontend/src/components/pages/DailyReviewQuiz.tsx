@@ -1,9 +1,14 @@
 import { Button } from "@/components/ui/button";
 import { type Question, upscQuestions } from "@/data/upscQuestions";
 import { useDailyProgress } from "@/hooks/useDailyProgress";
+import {
+  type WeakQuestion,
+  loadWeakQuestions,
+  removeWeakQuestion,
+} from "@/lib/weakAreasStorage";
 import { ArrowLeft, CheckCircle2, XCircle } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 const MISTAKES_KEY = "lawcet_mistakes";
 const DAILY_REVIEW_KEY = "lawcet_daily_review";
@@ -77,6 +82,7 @@ export function getDailyQuestions(): Question[] {
 
 interface DailyReviewQuizProps {
   onClose: () => void;
+  onExamActiveChange?: (active: boolean) => void;
 }
 
 const SUBJECT_LABELS: Record<string, string> = {
@@ -85,14 +91,49 @@ const SUBJECT_LABELS: Record<string, string> = {
   geography: "Geography",
 };
 
-export function DailyReviewQuiz({ onClose }: DailyReviewQuizProps) {
-  const questions = useMemo(() => getDailyQuestions(), []);
+export function DailyReviewQuiz({
+  onClose,
+  onExamActiveChange,
+}: DailyReviewQuizProps) {
+  const submittedRef = useRef(false);
+  const questions = useMemo(() => {
+    const base = getDailyQuestions();
+    // Merge up to 5 weak questions from mock/PYQ
+    const weak = loadWeakQuestions().slice(0, 5);
+    const weakConverted = weak.map((wq: WeakQuestion) => ({
+      id: wq.id,
+      subject: wq.subject as "polity" | "history" | "geography",
+      text: wq.text,
+      options: wq.options as [string, string, string, string],
+      correct: wq.correct as 0 | 1 | 2 | 3,
+      explanation: wq.explanation,
+      _fromWeak: true,
+    }));
+    return [...base, ...weakConverted];
+  }, []);
   const { incrementCompleted } = useDailyProgress();
   const [current, setCurrent] = useState(0);
   const [answers, setAnswers] = useState<(number | null)[]>(
     Array(questions.length).fill(null),
   );
   const [submitted, setSubmitted] = useState(false);
+
+  useEffect(() => {
+    onExamActiveChange?.(true);
+    document.documentElement.requestFullscreen().catch(() => {});
+    const handler = (e: BeforeUnloadEvent) => {
+      if (submittedRef.current) return;
+      e.preventDefault();
+      e.returnValue =
+        "Your review session is in progress. Are you sure you want to leave?";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => {
+      window.removeEventListener("beforeunload", handler);
+      if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+      onExamActiveChange?.(false);
+    };
+  }, [onExamActiveChange]);
   const [direction, setDirection] = useState(1);
   const [removedCount, setRemovedCount] = useState(0);
 
@@ -101,7 +142,11 @@ export function DailyReviewQuiz({ onClose }: DailyReviewQuizProps) {
       <div className="max-w-[700px] mx-auto px-4 sm:px-6 py-8">
         <button
           type="button"
-          onClick={onClose}
+          onClick={() => {
+            if (document.fullscreenElement)
+              document.exitFullscreen().catch(() => {});
+            onClose();
+          }}
           className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors"
         >
           <ArrowLeft size={16} /> Back to Practice

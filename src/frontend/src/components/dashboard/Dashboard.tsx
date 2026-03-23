@@ -17,6 +17,7 @@ import type { ActivePage } from "../../App";
 import { useAuth } from "../../contexts/AuthContext";
 import { useDailyTargets, useToggleTarget } from "../../hooks/useQueries";
 import { DailyTargetCard } from "./DailyTargetCard";
+import { ExamCountdownCard } from "./ExamCountdownCard";
 import { IIStatusCard } from "./IIStatusCard";
 import { ProgressCard } from "./ProgressCard";
 import { QuickNav } from "./QuickNav";
@@ -168,6 +169,16 @@ export function Dashboard({ setActivePage }: DashboardProps) {
         </p>
       </motion.div>
 
+      {/* Exam Countdown Strip */}
+      <motion.div
+        initial={{ opacity: 0, y: -8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, delay: 0.1 }}
+        className="mb-6"
+      >
+        <ExamCountdownCard compact />
+      </motion.div>
+
       <motion.div
         variants={containerVariants}
         initial="hidden"
@@ -263,7 +274,7 @@ export function Dashboard({ setActivePage }: DashboardProps) {
                 </h2>
                 <button
                   type="button"
-                  onClick={() => setActivePage("Syllabus")}
+                  onClick={() => setActivePage("Syllabus Tracker")}
                   data-ocid="syllabus.overview.link"
                   className="text-xs font-medium hover:underline transition-colors"
                   style={{ color: "#0F3554" }}

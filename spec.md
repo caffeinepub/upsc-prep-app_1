@@ -1,28 +1,25 @@
 # TS LAWCET Prep
 
 ## Current State
-Mock test system stores a `TestResult` per test (score, accuracy, timeTaken, bySubject, completedAt) in localStorage under `lawcet_result_<id>`. `MockTestsPage` shows test cards with latest score badge. `MockExamPage` has exam, results, and review phases, but review is only accessible immediately after a test — not from history. Questions and user answers are NOT persisted in the result object, so post-session review is impossible.
+The app has 7 PYQ Mock Tests and 6 AI Mock Tests. Tests 5, 6, 7 use expansion data files (pyqExpansion56.ts, pyqExpansion7.ts). The CBTExamInterface requests fullscreen via the Fullscreen API. App.tsx hides the nav when `examActive` is true.
 
 ## Requested Changes (Diff)
 
 ### Add
-- `questions` and `answers` snapshot fields to `TestResult` interface and `saveResult` call so detailed history review is possible
-- `MockTestHistoryPage` component: a full history list + detail view
-  - History list shows all completed tests (Test 1, Test 2, ...), each card showing date, score (X/120), accuracy %, time taken
-  - Filter/sort controls: Sort by Latest, Sort by Highest Score
-  - Click any history card → detailed view: shows all 120 questions with user answer vs correct answer highlighted, explanations, same review UI as MockExamPage review phase
-- History tab/button on `MockTestsPage` to navigate to `MockTestHistoryPage`
+- Normalize all subject names in pyqExpansion56.ts: change `"General Knowledge"` → `"GK & Current Affairs"` to match the rest of the system
+- Graceful fullscreen fallback for iOS Safari (which doesn't support `requestFullscreen`)
 
 ### Modify
-- `mockTestStorage.ts`: Add `questions` (Question array snapshot) and `answers` (Record<number,number>) to `TestResult` interface; update `saveResult` type
-- `MockExamPage.tsx`: Pass `questions` and `answers` to `saveResult` when entering results phase
-- `MockTestsPage.tsx`: Add a "History" tab toggle at top to switch between test cards and history view
+- CBTExamInterface: wrap fullscreen request in try/catch with webkit prefix support (`webkitRequestFullscreen`), and add a CSS fallback so the exam fills the screen even without fullscreen API
+- PYQExamPage: ensure sortBySection handles both "General Knowledge" and "GK & Current Affairs" (already done, verify)
+- MockTestsPage: fix potential state loss on `examActive` re-render — move `activeExam` initialization so it's stable
+- App.tsx: ensure the exam container uses `position: fixed; inset: 0` to truly cover the viewport on mobile without relying on fullscreen API
 
 ### Remove
-- Nothing removed
+- Nothing
 
 ## Implementation Plan
-1. Update `mockTestStorage.ts`: add `questions` and `answers` to `TestResult`; keep backward-compatible (optional fields)
-2. Update `MockExamPage.tsx`: include `questions` and `answers` in the `saveResult` call
-3. Create `MockTestHistoryPage.tsx`: history list with sort filter, click-to-detail with full question review (reuse review UI logic from MockExamPage)
-4. Update `MockTestsPage.tsx`: add tabs (Tests / History) at the top; render `MockTestHistoryPage` when History tab active
+1. In pyqExpansion56.ts: replace all `subject: "General Knowledge"` with `subject: "GK & Current Affairs"`
+2. In CBTExamInterface.tsx: improve fullscreen request to include webkit prefix and handle iOS gracefully; make the exam container `position: fixed; inset: 0; z-index: 9999` as a CSS fallback
+3. In App.tsx: when examActive, use `position: fixed; inset: 0` container so nav is always hidden without fullscreen API
+4. Validate and build

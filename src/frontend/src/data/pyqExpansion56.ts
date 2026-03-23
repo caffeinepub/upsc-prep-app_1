@@ -776,7 +776,7 @@ export const pyqTest5Extra: PYQQuestion[] = [
   {
     id: 5076,
     year: 0,
-    subject: "General Knowledge",
+    subject: "GK & Current Affairs",
     topic: "Indian Constitution",
     question: "Who is known as the Father of the Indian Constitution?",
     options: [
@@ -792,7 +792,7 @@ export const pyqTest5Extra: PYQQuestion[] = [
   {
     id: 5077,
     year: 0,
-    subject: "General Knowledge",
+    subject: "GK & Current Affairs",
     topic: "Indian Constitution",
     question: "How many schedules does the Indian Constitution have?",
     options: ["8", "10", "12", "14"],
@@ -803,7 +803,7 @@ export const pyqTest5Extra: PYQQuestion[] = [
   {
     id: 5078,
     year: 0,
-    subject: "General Knowledge",
+    subject: "GK & Current Affairs",
     topic: "Indian Polity",
     question: "The Preamble to the Indian Constitution begins with the words:",
     options: [
@@ -818,7 +818,7 @@ export const pyqTest5Extra: PYQQuestion[] = [
   {
     id: 5079,
     year: 0,
-    subject: "General Knowledge",
+    subject: "GK & Current Affairs",
     topic: "Indian Law",
     question: "The Indian Penal Code was enacted in the year:",
     options: ["1857", "1860", "1872", "1882"],
@@ -829,7 +829,7 @@ export const pyqTest5Extra: PYQQuestion[] = [
   {
     id: 5080,
     year: 0,
-    subject: "General Knowledge",
+    subject: "GK & Current Affairs",
     topic: "Telangana",
     question: "Telangana state was formed by bifurcation of:",
     options: ["Karnataka", "Maharashtra", "Andhra Pradesh", "Odisha"],
@@ -840,7 +840,7 @@ export const pyqTest5Extra: PYQQuestion[] = [
   {
     id: 5081,
     year: 0,
-    subject: "General Knowledge",
+    subject: "GK & Current Affairs",
     topic: "Indian Polity",
     question: "The Rajya Sabha is presided over by:",
     options: ["President", "Prime Minister", "Vice President", "Speaker"],
@@ -851,7 +851,7 @@ export const pyqTest5Extra: PYQQuestion[] = [
   {
     id: 5082,
     year: 0,
-    subject: "General Knowledge",
+    subject: "GK & Current Affairs",
     topic: "Indian Constitution",
     question:
       "Which article of the Constitution deals with Right to Constitutional Remedies?",
@@ -863,7 +863,7 @@ export const pyqTest5Extra: PYQQuestion[] = [
   {
     id: 5083,
     year: 0,
-    subject: "General Knowledge",
+    subject: "GK & Current Affairs",
     topic: "Indian Judiciary",
     question: "The Supreme Court of India has its seat in:",
     options: ["Mumbai", "Chennai", "Kolkata", "New Delhi"],
@@ -873,7 +873,7 @@ export const pyqTest5Extra: PYQQuestion[] = [
   {
     id: 5084,
     year: 0,
-    subject: "General Knowledge",
+    subject: "GK & Current Affairs",
     topic: "Indian Law",
     question: "The Code of Criminal Procedure (CrPC) was replaced by:",
     options: [
@@ -889,7 +889,7 @@ export const pyqTest5Extra: PYQQuestion[] = [
   {
     id: 5085,
     year: 0,
-    subject: "General Knowledge",
+    subject: "GK & Current Affairs",
     topic: "Indian Polity",
     question:
       "Which body recommends the appointment of the Chief Justice of India?",
@@ -906,7 +906,7 @@ export const pyqTest5Extra: PYQQuestion[] = [
   {
     id: 5086,
     year: 0,
-    subject: "General Knowledge",
+    subject: "GK & Current Affairs",
     topic: "Indian Constitution",
     question:
       "Fundamental Duties are included in which Part of the Constitution?",
@@ -918,7 +918,7 @@ export const pyqTest5Extra: PYQQuestion[] = [
   {
     id: 5087,
     year: 0,
-    subject: "General Knowledge",
+    subject: "GK & Current Affairs",
     topic: "Telangana",
     question: "The High Court of Telangana is located in:",
     options: ["Warangal", "Hyderabad", "Nizamabad", "Karimnagar"],
@@ -928,7 +928,7 @@ export const pyqTest5Extra: PYQQuestion[] = [
   {
     id: 5088,
     year: 0,
-    subject: "General Knowledge",
+    subject: "GK & Current Affairs",
     topic: "Indian Law",
     question:
       "The right of an arrested person to consult a legal practitioner is guaranteed under:",
@@ -940,7 +940,7 @@ export const pyqTest5Extra: PYQQuestion[] = [
   {
     id: 5089,
     year: 0,
-    subject: "General Knowledge",
+    subject: "GK & Current Affairs",
     topic: "Indian Polity",
     question:
       "Which constitutional amendment lowered the voting age from 21 to 18?",
@@ -957,7 +957,7 @@ export const pyqTest5Extra: PYQQuestion[] = [
   {
     id: 5090,
     year: 0,
-    subject: "General Knowledge",
+    subject: "GK & Current Affairs",
     topic: "Indian History",
     question: "The Champaran Satyagraha (1917) was related to:",
     options: ["Salt tax", "Indigo farming", "Land revenue", "Silk weaving"],
@@ -968,7 +968,7 @@ export const pyqTest5Extra: PYQQuestion[] = [
   {
     id: 5091,
     year: 0,
-    subject: "General Knowledge",
+    subject: "GK & Current Affairs",
     topic: "Indian Constitution",
     question: "The Directive Principles of State Policy are contained in:",
     options: ["Part II", "Part III", "Part IV", "Part V"],
@@ -979,7 +979,7 @@ export const pyqTest5Extra: PYQQuestion[] = [
   {
     id: 5092,
     year: 0,
-    subject: "General Knowledge",
+    subject: "GK & Current Affairs",
     topic: "Indian Law",
     question: "Under which act is child labour prohibited in India?",
     options: [
@@ -995,7 +995,7 @@ export const pyqTest5Extra: PYQQuestion[] = [
   {
     id: 5093,
     year: 0,
-    subject: "General Knowledge",
+    subject: "GK & Current Affairs",
     topic: "Indian Polity",
     question: "A no-confidence motion can be moved against:",
     options: [
@@ -1011,7 +1011,7 @@ export const pyqTest5Extra: PYQQuestion[] = [
   {
     id: 5094,
     year: 0,
-    subject: "General Knowledge",
+    subject: "GK & Current Affairs",
     topic: "Telangana",
     question: "Which river is called the lifeline of Telangana?",
     options: ["Krishna", "Tungabhadra", "Godavari", "Periyar"],
@@ -1021,7 +1021,7 @@ export const pyqTest5Extra: PYQQuestion[] = [
   {
     id: 5095,
     year: 0,
-    subject: "General Knowledge",
+    subject: "GK & Current Affairs",
     topic: "Indian Constitution",
     question: "The concept of Judicial Review in India is inspired by:",
     options: ["UK", "USA", "France", "Australia"],
@@ -1032,7 +1032,7 @@ export const pyqTest5Extra: PYQQuestion[] = [
   {
     id: 5096,
     year: 0,
-    subject: "General Knowledge",
+    subject: "GK & Current Affairs",
     topic: "Indian Law",
     question:
       "The Protection of Women from Domestic Violence Act was enacted in:",
@@ -1044,7 +1044,7 @@ export const pyqTest5Extra: PYQQuestion[] = [
   {
     id: 5097,
     year: 0,
-    subject: "General Knowledge",
+    subject: "GK & Current Affairs",
     topic: "Indian Polity",
     question: "The Finance Commission is constituted every:",
     options: ["3 years", "4 years", "5 years", "6 years"],
@@ -2061,7 +2061,7 @@ export const pyqTest6Extra: PYQQuestion[] = [
   {
     id: 6076,
     year: 0,
-    subject: "General Knowledge",
+    subject: "GK & Current Affairs",
     topic: "Indian Constitution",
     question: "The Indian Constitution is the world's:",
     options: [
@@ -2077,7 +2077,7 @@ export const pyqTest6Extra: PYQQuestion[] = [
   {
     id: 6077,
     year: 0,
-    subject: "General Knowledge",
+    subject: "GK & Current Affairs",
     topic: "Indian Polity",
     question: "Who has the power to declare National Emergency in India?",
     options: [
@@ -2093,7 +2093,7 @@ export const pyqTest6Extra: PYQQuestion[] = [
   {
     id: 6078,
     year: 0,
-    subject: "General Knowledge",
+    subject: "GK & Current Affairs",
     topic: "Indian Law",
     question: "The Right to Information Act was enacted in:",
     options: ["2003", "2004", "2005", "2007"],
@@ -2104,7 +2104,7 @@ export const pyqTest6Extra: PYQQuestion[] = [
   {
     id: 6079,
     year: 0,
-    subject: "General Knowledge",
+    subject: "GK & Current Affairs",
     topic: "Telangana",
     question: "The famous Charminar is located in:",
     options: ["Warangal", "Karimnagar", "Hyderabad", "Nizamabad"],
@@ -2115,7 +2115,7 @@ export const pyqTest6Extra: PYQQuestion[] = [
   {
     id: 6080,
     year: 0,
-    subject: "General Knowledge",
+    subject: "GK & Current Affairs",
     topic: "Indian Constitution",
     question: "Which article abolishes untouchability?",
     options: ["Article 14", "Article 15", "Article 17", "Article 19"],
@@ -2126,7 +2126,7 @@ export const pyqTest6Extra: PYQQuestion[] = [
   {
     id: 6081,
     year: 0,
-    subject: "General Knowledge",
+    subject: "GK & Current Affairs",
     topic: "Indian Polity",
     question: "The Lok Sabha Speaker is elected by:",
     options: [
@@ -2142,7 +2142,7 @@ export const pyqTest6Extra: PYQQuestion[] = [
   {
     id: 6082,
     year: 0,
-    subject: "General Knowledge",
+    subject: "GK & Current Affairs",
     topic: "Indian History",
     question:
       "The Indian Independence Act was passed by the British Parliament in:",
@@ -2154,7 +2154,7 @@ export const pyqTest6Extra: PYQQuestion[] = [
   {
     id: 6083,
     year: 0,
-    subject: "General Knowledge",
+    subject: "GK & Current Affairs",
     topic: "Indian Law",
     question:
       "The Consumer Protection Act 2019 provides for complaints to be resolved within:",
@@ -2166,7 +2166,7 @@ export const pyqTest6Extra: PYQQuestion[] = [
   {
     id: 6084,
     year: 0,
-    subject: "General Knowledge",
+    subject: "GK & Current Affairs",
     topic: "Indian Constitution",
     question: "The State Legislative Assembly is called:",
     options: ["Rajya Sabha", "Lok Sabha", "Vidhan Sabha", "Vidhan Parishad"],
@@ -2177,7 +2177,7 @@ export const pyqTest6Extra: PYQQuestion[] = [
   {
     id: 6085,
     year: 0,
-    subject: "General Knowledge",
+    subject: "GK & Current Affairs",
     topic: "Indian Polity",
     question: "Money Bill can only be introduced in:",
     options: ["Rajya Sabha", "Lok Sabha", "Either House", "Joint Session"],
@@ -2188,7 +2188,7 @@ export const pyqTest6Extra: PYQQuestion[] = [
   {
     id: 6086,
     year: 0,
-    subject: "General Knowledge",
+    subject: "GK & Current Affairs",
     topic: "Telangana",
     question: "Telangana's official language is:",
     options: ["Hindi", "Urdu", "Telugu", "Both Telugu and Urdu"],
@@ -2198,7 +2198,7 @@ export const pyqTest6Extra: PYQQuestion[] = [
   {
     id: 6087,
     year: 0,
-    subject: "General Knowledge",
+    subject: "GK & Current Affairs",
     topic: "Indian Constitution",
     question:
       "Article 21A (Right to Education) was inserted by which amendment?",
@@ -2210,7 +2210,7 @@ export const pyqTest6Extra: PYQQuestion[] = [
   {
     id: 6088,
     year: 0,
-    subject: "General Knowledge",
+    subject: "GK & Current Affairs",
     topic: "Indian Law",
     question: "The National Human Rights Commission was established under:",
     options: [
@@ -2226,7 +2226,7 @@ export const pyqTest6Extra: PYQQuestion[] = [
   {
     id: 6089,
     year: 0,
-    subject: "General Knowledge",
+    subject: "GK & Current Affairs",
     topic: "Indian History",
     question: "Who gave the slogan 'Do or Die' during Quit India Movement?",
     options: [
@@ -2242,7 +2242,7 @@ export const pyqTest6Extra: PYQQuestion[] = [
   {
     id: 6090,
     year: 0,
-    subject: "General Knowledge",
+    subject: "GK & Current Affairs",
     topic: "Indian Constitution",
     question:
       "The concept of 'Basic Structure' of Constitution was propounded in:",
@@ -2259,7 +2259,7 @@ export const pyqTest6Extra: PYQQuestion[] = [
   {
     id: 6091,
     year: 0,
-    subject: "General Knowledge",
+    subject: "GK & Current Affairs",
     topic: "Indian Polity",
     question: "The Inter-State Council is established under which article?",
     options: ["Article 261", "Article 263", "Article 265", "Article 267"],
@@ -2270,7 +2270,7 @@ export const pyqTest6Extra: PYQQuestion[] = [
   {
     id: 6092,
     year: 0,
-    subject: "General Knowledge",
+    subject: "GK & Current Affairs",
     topic: "Indian Law",
     question: "The Negotiable Instruments Act deals with:",
     options: [
@@ -2286,7 +2286,7 @@ export const pyqTest6Extra: PYQQuestion[] = [
   {
     id: 6093,
     year: 0,
-    subject: "General Knowledge",
+    subject: "GK & Current Affairs",
     topic: "Telangana",
     question: "Which district of Telangana has the Nagarjuna Sagar dam?",
     options: ["Nalgonda", "Khammam", "Mahbubnagar", "Warangal"],
@@ -2297,7 +2297,7 @@ export const pyqTest6Extra: PYQQuestion[] = [
   {
     id: 6094,
     year: 0,
-    subject: "General Knowledge",
+    subject: "GK & Current Affairs",
     topic: "Indian Constitution",
     question: "The 73rd Constitutional Amendment created which bodies?",
     options: [
@@ -2313,7 +2313,7 @@ export const pyqTest6Extra: PYQQuestion[] = [
   {
     id: 6095,
     year: 0,
-    subject: "General Knowledge",
+    subject: "GK & Current Affairs",
     topic: "Indian History",
     question: "The partition of Bengal (1905) was done by:",
     options: [
@@ -2329,7 +2329,7 @@ export const pyqTest6Extra: PYQQuestion[] = [
   {
     id: 6096,
     year: 0,
-    subject: "General Knowledge",
+    subject: "GK & Current Affairs",
     topic: "Indian Law",
     question: "The Specific Relief Act was amended in:",
     options: ["2012", "2014", "2016", "2018"],
@@ -2340,7 +2340,7 @@ export const pyqTest6Extra: PYQQuestion[] = [
   {
     id: 6097,
     year: 0,
-    subject: "General Knowledge",
+    subject: "GK & Current Affairs",
     topic: "Indian Constitution",
     question:
       "Which schedule of the Constitution lists anti-defection provisions?",

@@ -38,7 +38,11 @@ interface CBTExamInterfaceProps {
   initialAnswers?: Record<number, number>;
   initialMarked?: number[];
   initialTimeLeft?: number;
+  initialCurrentIndex?: number;
+  initialVisited?: number[];
+  onCurrentIndexChange?: (idx: number) => void;
   onAnswerChange?: (answers: Record<number, number>) => void;
+  onVisitedChange?: (visited: number[]) => void;
   onMarkedChange?: (marked: number[]) => void;
   onTimeChange?: (timeLeft: number) => void;
   onSubmit: (
@@ -124,19 +128,26 @@ export function CBTExamInterface({
   initialMarked = [],
   initialTimeLeft = 90 * 60,
   onAnswerChange,
+  onVisitedChange,
   onMarkedChange,
   onTimeChange,
+  initialCurrentIndex,
+  initialVisited,
+  onCurrentIndexChange,
   onSubmit,
   onExit,
 }: CBTExamInterfaceProps) {
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const [currentIndex, setCurrentIndex] = useState(initialCurrentIndex ?? 0);
   const [answers, setAnswers] =
     useState<Record<number, number>>(initialAnswers);
   const [marked, setMarked] = useState<Set<number>>(new Set(initialMarked));
   const [timeLeft, setTimeLeft] = useState(initialTimeLeft);
-  const [visited, setVisited] = useState<Set<number>>(new Set([0]));
+  const [visited, setVisited] = useState<Set<number>>(
+    () => new Set([...(initialVisited ?? []), initialCurrentIndex ?? 0]),
+  );
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [showExitDialog, setShowExitDialog] = useState(false);
+  const [showSubmitDialog, setShowSubmitDialog] = useState(false);
   const hasSubmitted = useRef(false);
   const onSubmitRef = useRef(onSubmit);
   onSubmitRef.current = onSubmit;
@@ -157,16 +168,28 @@ export function CBTExamInterface({
     });
   }, [answers, questions.length]);
 
+  // Lock body scroll and fix iOS viewport height
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
+
   // Request fullscreen on mount
   useEffect(() => {
-    const el = document.documentElement;
-    if (el.requestFullscreen) {
-      el.requestFullscreen().catch(() => {});
-    }
+    const el = document.documentElement as any;
+    try {
+      if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
+      else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+    } catch {}
     return () => {
-      if (document.fullscreenElement) {
-        document.exitFullscreen().catch(() => {});
-      }
+      try {
+        if (document.fullscreenElement && document.exitFullscreen) {
+          document.exitFullscreen().catch(() => {});
+        }
+      } catch {}
     };
   }, []);
 
@@ -183,8 +206,10 @@ export function CBTExamInterface({
             setTimeout(() => {
               setAnswers((a) => {
                 setMarked((m) => {
-                  if (document.fullscreenElement)
-                    document.exitFullscreen().catch(() => {});
+                  try {
+                    if (document.fullscreenElement && document.exitFullscreen)
+                      document.exitFullscreen().catch(() => {});
+                  } catch {}
                   onSubmitRef.current(a, m, 0);
                   return m;
                 });
@@ -200,14 +225,30 @@ export function CBTExamInterface({
     return () => clearInterval(timer);
   }, []);
 
-  const goTo = useCallback((idx: number) => {
-    setCurrentIndex(idx);
-    setVisited((prev) => {
-      const next = new Set(prev);
-      next.add(idx);
-      return next;
-    });
+  // Warn before leaving while exam is active
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (hasSubmitted.current) return;
+      e.preventDefault();
+      e.returnValue =
+        "Your test is in progress. Are you sure you want to leave?";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
   }, []);
+
+  const goTo = useCallback(
+    (idx: number) => {
+      setCurrentIndex(idx);
+      onCurrentIndexChange?.(idx);
+      setVisited((prev) => {
+        const next = new Set(prev);
+        next.add(idx);
+        return next;
+      });
+    },
+    [onCurrentIndexChange],
+  );
 
   const goToSection = useCallback(
     (sec: (typeof SECTIONS)[number]) => {
@@ -223,8 +264,15 @@ export function CBTExamInterface({
         onAnswerChange?.(next);
         return next;
       });
+      setVisited((prev) => {
+        if (prev.has(currentIndex)) return prev;
+        const next = new Set(prev);
+        next.add(currentIndex);
+        onVisitedChange?.(Array.from(next));
+        return next;
+      });
     },
-    [currentIndex, onAnswerChange],
+    [currentIndex, onAnswerChange, onVisitedChange],
   );
 
   const toggleMarked = useCallback(() => {
@@ -240,12 +288,18 @@ export function CBTExamInterface({
   const handleSubmit = useCallback(() => {
     if (hasSubmitted.current) return;
     hasSubmitted.current = true;
-    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    try {
+      if (document.fullscreenElement && document.exitFullscreen)
+        document.exitFullscreen().catch(() => {});
+    } catch {}
     onSubmit(answers, marked, timeLeft);
   }, [answers, marked, timeLeft, onSubmit]);
 
   const handleExitConfirm = useCallback(() => {
-    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    try {
+      if (document.fullscreenElement && document.exitFullscreen)
+        document.exitFullscreen().catch(() => {});
+    } catch {}
     onExit();
   }, [onExit]);
 
@@ -260,6 +314,7 @@ export function CBTExamInterface({
   return (
     <div
       className="fixed inset-0 z-[9999] flex flex-col bg-white"
+      style={{ height: "100dvh" }}
       data-ocid="cbt_exam.panel"
     >
       {/* TOP BAR */}
@@ -294,13 +349,16 @@ export function CBTExamInterface({
           {formatTime(timeLeft)}
         </div>
 
+        {/* Mobile Submit Button — always visible */}
         <Button
           data-ocid="cbt_exam.submit_button"
+          variant="ghost"
           size="sm"
-          onClick={handleSubmit}
-          className="gap-1.5 bg-green-600 hover:bg-green-700 text-white flex-shrink-0 hidden sm:flex"
+          className="text-white bg-green-600 hover:bg-green-700 h-8 px-2 flex-shrink-0 md:hidden"
+          onClick={() => setShowSubmitDialog(true)}
         >
-          <Send size={13} /> Submit Test
+          <Send size={14} />
+          <span className="ml-1 text-xs font-semibold">Submit</span>
         </Button>
 
         <Button
@@ -316,7 +374,7 @@ export function CBTExamInterface({
 
       {/* SECTION TABS */}
       <div className="flex-shrink-0 bg-white border-b shadow-sm">
-        <div className="flex items-center justify-center gap-0 sm:gap-2 px-2">
+        <div className="flex items-center justify-center gap-0 sm:gap-2 px-2 overflow-hidden">
           {sectionStats.map((sec) => {
             const isActive = currentSection.key === sec.key;
             return (
@@ -325,7 +383,7 @@ export function CBTExamInterface({
                 key={sec.key}
                 onClick={() => goToSection(sec)}
                 className={cn(
-                  "relative flex flex-col items-center px-3 sm:px-6 py-2.5 text-xs sm:text-sm font-semibold border-b-2",
+                  "relative flex flex-col items-center px-3 sm:px-6 py-2.5 text-[10px] sm:text-sm font-semibold border-b-2 overflow-hidden",
                   isActive
                     ? "border-current"
                     : "border-transparent text-gray-400 hover:text-gray-600",
@@ -541,7 +599,7 @@ export function CBTExamInterface({
               data-ocid="cbt_exam.submit_button"
               className="w-full gap-2 bg-green-600 hover:bg-green-700 text-white"
               size="sm"
-              onClick={handleSubmit}
+              onClick={() => setShowSubmitDialog(true)}
             >
               <Send size={14} /> Submit Test
             </Button>
@@ -550,7 +608,12 @@ export function CBTExamInterface({
       </div>
 
       {/* BOTTOM BAR */}
-      <footer className="flex-shrink-0 flex items-center justify-between gap-2 px-5 py-3 bg-white border-t shadow-sm">
+      <footer
+        className="flex-shrink-0 flex items-center justify-between gap-2 px-5 py-3 bg-white border-t shadow-sm"
+        style={{
+          paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)",
+        }}
+      >
         <Button
           data-ocid="cbt_exam.pagination_prev"
           variant="outline"
@@ -586,7 +649,7 @@ export function CBTExamInterface({
             data-ocid="cbt_exam.submit_button"
             size="sm"
             className="gap-1.5 bg-green-600 hover:bg-green-700 text-white"
-            onClick={handleSubmit}
+            onClick={() => setShowSubmitDialog(true)}
           >
             <Send size={13} /> Submit
           </Button>
@@ -603,7 +666,7 @@ export function CBTExamInterface({
         )}
       </footer>
 
-      {/* Mobile Palette Bottom Sheet — no animation */}
+      {/* Mobile Palette Bottom Sheet */}
       {paletteOpen && (
         <div
           data-ocid="cbt_exam.modal"
@@ -652,7 +715,7 @@ export function CBTExamInterface({
               ))}
             </div>
 
-            <div className="overflow-y-auto space-y-4">
+            <div className="overflow-y-auto space-y-4 flex-1">
               {sectionStats.map((sec) => {
                 if (sec.total === 0) return null;
                 return (
@@ -704,6 +767,22 @@ export function CBTExamInterface({
                 );
               })}
             </div>
+
+            {/* Submit from palette */}
+            <div className="pt-3 border-t mt-3">
+              <Button
+                data-ocid="cbt_exam.submit_button"
+                className="w-full gap-2 bg-green-600 hover:bg-green-700 text-white"
+                size="sm"
+                onClick={() => {
+                  setPaletteOpen(false);
+                  setShowSubmitDialog(true);
+                }}
+              >
+                <Send size={14} /> Submit Test ({answered}/{questions.length}{" "}
+                answered)
+              </Button>
+            </div>
           </div>
         </div>
       )}
@@ -727,6 +806,31 @@ export function CBTExamInterface({
               onClick={handleExitConfirm}
             >
               Exit Test
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Submit Confirmation Dialog */}
+      <AlertDialog open={showSubmitDialog} onOpenChange={setShowSubmitDialog}>
+        <AlertDialogContent data-ocid="cbt_exam.dialog">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Submit Test?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have answered {answered} of {questions.length} questions.
+              Submit now?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-ocid="cbt_exam.cancel_button">
+              Review More
+            </AlertDialogCancel>
+            <AlertDialogAction
+              data-ocid="cbt_exam.confirm_button"
+              className="bg-green-600 hover:bg-green-700"
+              onClick={handleSubmit}
+            >
+              Submit Test
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

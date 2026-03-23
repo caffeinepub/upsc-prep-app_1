@@ -1,3 +1,9 @@
+import {
+  CA_CATEGORIES,
+  CA_MONTHS,
+  caMonthKey,
+  caTopicKey,
+} from "@/data/caData";
 import { useCallback, useEffect, useState } from "react";
 
 export const SECTIONS = [
@@ -112,7 +118,6 @@ export interface SectionStats {
 export function useSyllabusProgress() {
   const [checked, setChecked] = useState<Record<string, boolean>>(loadChecked);
 
-  // Sync to localStorage whenever checked changes
   useEffect(() => {
     localStorage.setItem("tslawcet_syllabus", JSON.stringify(checked));
   }, [checked]);
@@ -147,6 +152,29 @@ export function useSyllabusProgress() {
     [checked],
   );
 
+  // CA stats
+  const caStats = useCallback(() => {
+    let total = 0;
+    let done = 0;
+    for (const cat of CA_CATEGORIES) {
+      // topics
+      total += cat.topics.length;
+      for (let i = 0; i < cat.topics.length; i++) {
+        if (checked[caTopicKey(cat.id, i)]) done += 1;
+      }
+      // months
+      total += CA_MONTHS.length;
+      for (let m = 0; m < CA_MONTHS.length; m++) {
+        if (checked[caMonthKey(cat.id, m)]) done += 1;
+      }
+    }
+    return {
+      total,
+      done,
+      percent: total > 0 ? Math.round((done / total) * 100) : 0,
+    };
+  }, [checked]);
+
   const overallStats = (() => {
     let total = 0;
     let done = 0;
@@ -155,6 +183,10 @@ export function useSyllabusProgress() {
       total += st.total;
       done += st.done;
     }
+    // include CA
+    const ca = caStats();
+    total += ca.total;
+    done += ca.done;
     return {
       total,
       done,
@@ -194,6 +226,7 @@ export function useSyllabusProgress() {
     checked,
     toggle,
     sectionStats,
+    caStats,
     overallStats,
     pendingTopics,
     nextSuggestion,

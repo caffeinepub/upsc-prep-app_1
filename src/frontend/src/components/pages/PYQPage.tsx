@@ -16,21 +16,42 @@ type ActiveTest =
   | { kind: "year"; year: number }
   | { kind: "series"; test: PYQMockTest };
 
-export function PYQPage() {
+interface PYQPageProps {
+  onExamActiveChange?: (active: boolean) => void;
+}
+
+export function PYQPage({ onExamActiveChange }: PYQPageProps) {
   const [active, setActive] = useState<ActiveTest | null>(null);
   const years = getPYQYears();
   const allQuestions = getAllPYQQuestions();
   const mockTests = getAllPYQMockTests();
 
+  const handleStart = (test: ActiveTest) => {
+    setActive(test);
+    onExamActiveChange?.(true);
+  };
+
+  const handleExit = () => {
+    onExamActiveChange?.(false);
+    setActive(null);
+  };
+
   if (active) {
     if (active.kind === "year") {
-      return <PYQExamPage year={active.year} onExit={() => setActive(null)} />;
+      return (
+        <PYQExamPage
+          year={active.year}
+          onExit={handleExit}
+          onExamActiveChange={onExamActiveChange}
+        />
+      );
     }
     return (
       <PYQExamPage
         title={active.test.title}
         questions={active.test.questions}
-        onExit={() => setActive(null)}
+        onExit={handleExit}
+        onExamActiveChange={onExamActiveChange}
       />
     );
   }
@@ -118,7 +139,7 @@ export function PYQPage() {
               </div>
               <Button
                 className="w-full bg-indigo-600 hover:bg-indigo-700"
-                onClick={() => setActive({ kind: "year", year: 0 })}
+                onClick={() => handleStart({ kind: "year", year: 0 })}
                 data-ocid="pyq.primary_button"
               >
                 Start Combined Test
@@ -202,7 +223,7 @@ export function PYQPage() {
                   <Button
                     className="w-full"
                     style={{ backgroundColor: "#0F3554" }}
-                    onClick={() => setActive({ kind: "year", year })}
+                    onClick={() => handleStart({ kind: "year", year })}
                     data-ocid={`pyq.item.${idx + 1}`}
                   >
                     Start PYQ {year}
@@ -290,7 +311,7 @@ export function PYQPage() {
                   <Button
                     size="sm"
                     className="w-full bg-violet-600 hover:bg-violet-700 text-xs"
-                    onClick={() => setActive({ kind: "series", test })}
+                    onClick={() => handleStart({ kind: "series", test })}
                     data-ocid={`pyq.series.item.${idx + 1}`}
                   >
                     Start Test {test.id}

@@ -3,16 +3,21 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useAuth } from "@/contexts/AuthContext";
 import { useDailyProgress } from "@/hooks/useDailyProgress";
 import {
   clearSession,
+  completeAttempt,
+  createOrResumeAttempt,
   generateAttemptId,
   loadSession,
+  saveAttempt,
   saveResult,
   saveSession,
 } from "@/lib/mockTestStorage";
 import { recordActivity } from "@/lib/streakTracker";
 import { cn } from "@/lib/utils";
+import { saveWeakQuestion } from "@/lib/weakAreasStorage";
 import {
   AlertTriangle,
   BookOpen,
@@ -68,36 +73,122 @@ const SUBJECT_COLOR: Record<Subject, string> = {
 interface MockExamPageProps {
   testId: number;
   onExit: () => void;
+  onExamActiveChange?: (active: boolean) => void;
 }
 
-export function MockExamPage({ testId, onExit }: MockExamPageProps) {
+export function MockExamPage({
+  testId,
+  onExit,
+  onExamActiveChange,
+}: MockExamPageProps) {
   const { incrementCompleted } = useDailyProgress();
-  const [questions] = useState<Question[]>(() => selectQuestions());
+  const { user } = useAuth();
+  const userId = user?.email ?? "guest";
+
+  const [questions] = useState<Question[]>(() => {
+    const session = loadSession(testId);
+    if (session?.questionIds && session.questionIds.length > 0) {
+      const byId = new Map(questionBank.map((q) => [q.id, q]));
+      const restored = session.questionIds
+        .map((id) => byId.get(id))
+        .filter(Boolean) as Question[];
+      if (restored.length > 0) return restored;
+    }
+    return selectQuestions();
+  });
+
+  // Initialize attempt (create or resume) — must happen after questions are known
+  const attemptRef = useRef(
+    createOrResumeAttempt(
+      userId,
+      testId,
+      "Mock",
+      90 * 60,
+      questions.map((q) => q.id),
+    ),
+  );
+
+  const [currentIndex, setCurrentIndex] = useState<number>(() => {
+    // Prefer attempt's stored currentIndex, fall back to session
+    const attempt = attemptRef.current;
+    if (attempt.currentIndex !== undefined) return attempt.currentIndex;
+    const session = loadSession(testId);
+    return session?.currentIndex ?? 0;
+  });
   const [reviewIndex, setReviewIndex] = useState(0);
 
   // Id-based answers (question.id → option index)
   const [answers, setAnswers] = useState<Record<number, number>>(() => {
+    // Prefer attempt's answers if non-empty, fall back to session
+    const attempt = attemptRef.current;
+    if (Object.keys(attempt.answers).length > 0) return attempt.answers;
     const session = loadSession(testId);
     return session ? session.answers : {};
   });
   const [markedForReview, setMarkedForReview] = useState<Set<number>>(() => {
+    const attempt = attemptRef.current;
+    if (attempt.markedForReview.length > 0)
+      return new Set(attempt.markedForReview);
     const session = loadSession(testId);
     return session ? new Set(session.markedForReview) : new Set();
   });
+  const [visitedQuestions, setVisitedQuestions] = useState<Set<number>>(() => {
+    const attempt = attemptRef.current;
+    return new Set(attempt.visitedQuestions);
+  });
   const [timeLeft, setTimeLeft] = useState<number>(() => {
+    const attempt = attemptRef.current;
+    if (attempt.status === "in-progress" && attempt.startTime) {
+      const elapsed = Math.floor((Date.now() - attempt.startTime) / 1000);
+      return Math.max(0, 90 * 60 - elapsed);
+    }
+    if (attempt.status === "in-progress" && attempt.remainingTime < 90 * 60) {
+      return attempt.remainingTime;
+    }
     const session = loadSession(testId);
-    return session ? session.timeLeft : 90 * 60;
+    if (session?.startedAt) {
+      const elapsed = Math.floor((Date.now() - session.startedAt) / 1000);
+      return Math.max(0, 90 * 60 - elapsed);
+    }
+    return 90 * 60;
   });
   const [phase, setPhase] = useState<Phase>("exam");
 
+  // Signal exam active state to parent
+  useEffect(() => {
+    onExamActiveChange?.(true);
+    return () => onExamActiveChange?.(false);
+  }, [onExamActiveChange]);
+
+  useEffect(() => {
+    if (phase === "results") onExamActiveChange?.(false);
+  }, [phase, onExamActiveChange]);
+
   const startTimeRef = useRef<number>(
     (() => {
+      const attempt = attemptRef.current;
+      if (attempt.startTime) return attempt.startTime;
       const session = loadSession(testId);
       return session ? session.startedAt : Date.now();
     })(),
   );
 
-  // Auto-save session
+  // Persist startTime immediately on mount so reload can use it
+  // biome-ignore lint/correctness/useExhaustiveDependencies: run once on mount
+  useEffect(() => {
+    try {
+      const existing = localStorage.getItem(`lawcet_session_${testId}`);
+      const parsed = existing ? JSON.parse(existing) : {};
+      if (!parsed.startedAt) {
+        localStorage.setItem(
+          `lawcet_session_${testId}`,
+          JSON.stringify({ ...parsed, startedAt: startTimeRef.current }),
+        );
+      }
+    } catch {}
+  }, []);
+
+  // Auto-save session on every state change
   useEffect(() => {
     if (phase !== "exam") return;
     saveSession({
@@ -106,9 +197,68 @@ export function MockExamPage({ testId, onExit }: MockExamPageProps) {
       answers,
       markedForReview: Array.from(markedForReview),
       timeLeft,
+      currentIndex,
       startedAt: startTimeRef.current,
+      savedAt: Date.now(),
     });
-  }, [testId, questions, answers, markedForReview, timeLeft, phase]);
+    // Also sync attempt
+    const updated = {
+      ...attemptRef.current,
+      answers,
+      markedForReview: Array.from(markedForReview),
+      visitedQuestions: Array.from(visitedQuestions),
+      remainingTime: timeLeft,
+      currentIndex,
+    };
+    attemptRef.current = updated;
+    saveAttempt(updated);
+  }, [
+    testId,
+    questions,
+    answers,
+    markedForReview,
+    visitedQuestions,
+    timeLeft,
+    currentIndex,
+    phase,
+  ]);
+
+  // Additional 5-second periodic save for extra safety
+  useEffect(() => {
+    if (phase !== "exam") return;
+    const interval = setInterval(() => {
+      saveSession({
+        testId,
+        questionIds: questions.map((q) => q.id),
+        answers,
+        markedForReview: Array.from(markedForReview),
+        timeLeft,
+        currentIndex,
+        startedAt: startTimeRef.current,
+        savedAt: Date.now(),
+      });
+      const updated = {
+        ...attemptRef.current,
+        answers,
+        markedForReview: Array.from(markedForReview),
+        visitedQuestions: Array.from(visitedQuestions),
+        remainingTime: timeLeft,
+        currentIndex,
+      };
+      attemptRef.current = updated;
+      saveAttempt(updated);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [
+    phase,
+    testId,
+    questions,
+    answers,
+    markedForReview,
+    visitedQuestions,
+    timeLeft,
+    currentIndex,
+  ]);
 
   // Results computation
   const results = useMemo(() => {
@@ -136,6 +286,8 @@ export function MockExamPage({ testId, onExit }: MockExamPageProps) {
     saveResult({
       testId,
       attemptId: generateAttemptId(),
+      testName: `LAWCET Mock Test ${testId}`,
+      testType: "mock",
       score: results.correct,
       total: results.total,
       accuracy,
@@ -145,6 +297,13 @@ export function MockExamPage({ testId, onExit }: MockExamPageProps) {
       questions,
       answers,
     });
+    // Complete and persist the unified attempt
+    const completed = completeAttempt(
+      attemptRef.current,
+      results.correct,
+      accuracy,
+    );
+    attemptRef.current = completed;
     clearSession(testId);
     recordActivity();
     incrementCompleted(results.total);
@@ -168,18 +327,49 @@ export function MockExamPage({ testId, onExit }: MockExamPageProps) {
         if (q) idAnswers[q.id] = optIdx;
       }
       setAnswers(idAnswers);
+      setVisitedQuestions((prev) => {
+        if (prev.has(currentIndexRef.current)) return prev;
+        const next = new Set(prev);
+        next.add(currentIndexRef.current);
+        return next;
+      });
+      // Instant save — do not wait for useEffect
+      try {
+        const existing = localStorage.getItem(`lawcet_session_${testId}`);
+        if (existing) {
+          const prev = JSON.parse(existing);
+          localStorage.setItem(
+            `lawcet_session_${testId}`,
+            JSON.stringify({ ...prev, answers: idAnswers }),
+          );
+        }
+      } catch {}
     },
-    [questions],
+    [questions, testId],
   );
 
   const handleMarkedChange = useCallback((markedArr: number[]) => {
-    // CBTInterface uses index-based marked, but we store question ids
-    // For session compat, store as is (array of indices mapped to question ids)
     setMarkedForReview(new Set(markedArr));
   }, []);
 
   const handleTimeChange = useCallback((t: number) => {
     setTimeLeft(t);
+  }, []);
+
+  const currentIndexRef = useRef(0);
+
+  const handleCurrentIndexChange = useCallback((idx: number) => {
+    currentIndexRef.current = idx;
+    setCurrentIndex(idx);
+    setVisitedQuestions((prev) => {
+      const next = new Set(prev);
+      next.add(idx);
+      return next;
+    });
+  }, []);
+
+  const handleVisitedChange = useCallback((visited: number[]) => {
+    setVisitedQuestions(new Set(visited));
   }, []);
 
   const handleSubmit = useCallback(
@@ -197,9 +387,25 @@ export function MockExamPage({ testId, onExit }: MockExamPageProps) {
       setAnswers(idAnswers);
       setMarkedForReview(finalMarked);
       setTimeLeft(finalTimeLeft);
+      // Save wrong answers as weak questions
+      for (const [idxStr, optIdx] of Object.entries(indexAnswers)) {
+        const q = questions[Number(idxStr)];
+        if (q && q.correct !== optIdx) {
+          saveWeakQuestion({
+            id: `mock_${testId}_${q.id}`,
+            text: q.question,
+            options: q.options,
+            correct: q.correct,
+            explanation: q.explanation,
+            subject: q.subject,
+            source: "mock",
+            savedAt: Date.now(),
+          });
+        }
+      }
       setPhase("results");
     },
-    [questions],
+    [questions, testId],
   );
 
   // Build CBT-compatible questions (index is used as key, id for identity)
@@ -222,12 +428,15 @@ export function MockExamPage({ testId, onExit }: MockExamPageProps) {
   if (phase === "exam") {
     return (
       <CBTExamInterface
+        initialCurrentIndex={currentIndex}
+        onCurrentIndexChange={handleCurrentIndexChange}
         testName={`LAWCET Mock Test ${testId}`}
         questions={cbtQuestions}
         initialAnswers={indexBasedAnswers}
         initialMarked={Array.from(markedForReview)}
         initialTimeLeft={timeLeft}
         onAnswerChange={handleAnswerChange}
+        onVisitedChange={handleVisitedChange}
         onMarkedChange={handleMarkedChange}
         onTimeChange={handleTimeChange}
         onSubmit={handleSubmit}
@@ -523,17 +732,23 @@ export function MockExamPage({ testId, onExit }: MockExamPageProps) {
               </Card>
             </motion.div>
 
-            <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex items-center justify-center mb-4">
+              <span className="inline-flex items-center gap-1.5 bg-green-100 text-green-800 text-xs font-semibold px-3 py-1.5 rounded-full border border-green-300">
+                <CheckCircle2 size={13} /> Test Completed
+              </span>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3 mb-8">
               <Button
                 data-ocid="mock_results.primary_button"
                 className="flex-1 gap-2"
                 style={{ background: "oklch(var(--navy))", color: "white" }}
                 onClick={() => {
-                  setReviewIndex(0);
-                  setPhase("review");
+                  const el = document.getElementById("mock-full-review");
+                  el?.scrollIntoView({ behavior: "smooth" });
                 }}
               >
-                <BookOpen size={15} /> Review Answers
+                <BookOpen size={15} /> View Full Review
               </Button>
               <Button
                 data-ocid="mock_results.secondary_button"
@@ -543,6 +758,131 @@ export function MockExamPage({ testId, onExit }: MockExamPageProps) {
               >
                 Back to Tests
               </Button>
+            </div>
+
+            {/* ── Full Question Review ─────────────────────────────────────── */}
+            <div id="mock-full-review">
+              <h2
+                className="text-base font-bold mb-4 flex items-center gap-2"
+                style={{ color: "oklch(var(--navy))" }}
+              >
+                <BookOpen size={16} /> Full Question Review
+                <span className="text-xs font-normal text-muted-foreground ml-1">
+                  ({questions.length} questions)
+                </span>
+              </h2>
+              <div className="space-y-5" data-ocid="mock_results.list">
+                {questions.map((q, idx) => {
+                  const userAns = answers[q.id];
+                  const isCorrect = userAns === q.correct;
+                  const isAnswered = userAns !== undefined;
+                  return (
+                    <Card
+                      key={q.id}
+                      className="shadow-sm overflow-hidden"
+                      data-ocid={`mock_results.item.${idx + 1}`}
+                    >
+                      <CardContent className="p-5">
+                        <div className="flex items-center gap-2 mb-3 flex-wrap">
+                          <span className="text-xs font-bold text-muted-foreground">
+                            Q{idx + 1}
+                          </span>
+                          <Badge
+                            className={cn(
+                              "text-xs font-medium border-0",
+                              SUBJECT_COLOR[q.subject],
+                            )}
+                          >
+                            {q.subject}
+                          </Badge>
+                          {isAnswered && isCorrect && (
+                            <span className="flex items-center gap-1 text-xs text-green-700 font-semibold">
+                              <CheckCircle2 size={12} /> Correct
+                            </span>
+                          )}
+                          {isAnswered && !isCorrect && (
+                            <span className="flex items-center gap-1 text-xs text-red-600 font-semibold">
+                              <XCircle size={12} /> Incorrect
+                            </span>
+                          )}
+                          {!isAnswered && (
+                            <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                              <AlertTriangle size={12} /> Not Answered
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm font-medium leading-relaxed mb-4 whitespace-pre-line text-gray-900">
+                          {q.question}
+                        </p>
+                        <div className="space-y-2">
+                          {q.options.map((opt, oi) => {
+                            const isUserPick = userAns === oi;
+                            const isCorrectOpt = q.correct === oi;
+                            let cls = "bg-white border-gray-200 text-gray-600";
+                            if (isUserPick && isCorrectOpt)
+                              cls =
+                                "bg-green-100 border-green-500 text-green-800";
+                            else if (isUserPick && !isCorrectOpt)
+                              cls = "bg-red-100 border-red-500 text-red-800";
+                            else if (isCorrectOpt)
+                              cls =
+                                "bg-green-50 border-green-400 text-green-700";
+                            return (
+                              <div
+                                key={opt}
+                                className={cn(
+                                  "flex items-center gap-3 px-4 py-2.5 rounded-lg border-2 text-sm",
+                                  cls,
+                                )}
+                              >
+                                <span
+                                  className={cn(
+                                    "w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center flex-shrink-0",
+                                    isCorrectOpt
+                                      ? "bg-green-500 text-white"
+                                      : isUserPick
+                                        ? "bg-red-500 text-white"
+                                        : "bg-gray-100 text-gray-500",
+                                  )}
+                                >
+                                  {String.fromCharCode(65 + oi)}
+                                </span>
+                                <span className="flex-1">{opt}</span>
+                                {isUserPick && isCorrectOpt && (
+                                  <CheckCircle2
+                                    size={14}
+                                    className="text-green-600 flex-shrink-0"
+                                  />
+                                )}
+                                {isUserPick && !isCorrectOpt && (
+                                  <XCircle
+                                    size={14}
+                                    className="text-red-600 flex-shrink-0"
+                                  />
+                                )}
+                                {!isUserPick && isCorrectOpt && (
+                                  <CheckCircle2
+                                    size={14}
+                                    className="text-green-500 flex-shrink-0"
+                                  />
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <div className="mt-4 p-3 rounded-lg bg-blue-50 border border-blue-200">
+                          <p className="text-xs font-semibold text-blue-800 mb-1">
+                            Explanation
+                          </p>
+                          <p className="text-sm text-blue-900 leading-relaxed">
+                            {q.explanation}
+                          </p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
             </div>
           </motion.div>
         </div>

@@ -26,7 +26,11 @@ const BASE_TESTS: MockTest[] = [
 
 type Tab = "tests" | "history";
 
-export function MockTestsPage() {
+interface MockTestsPageProps {
+  onExamActiveChange?: (active: boolean) => void;
+}
+
+export function MockTestsPage({ onExamActiveChange }: MockTestsPageProps) {
   const [tests, setTests] = useState<MockTest[]>(BASE_TESTS);
   const [activeExam, setActiveExam] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>("tests");
@@ -50,13 +54,26 @@ export function MockTestsPage() {
     refreshResults();
   }, [refreshResults]);
 
+  useEffect(() => {
+    if (activeExam !== null) {
+      onExamActiveChange?.(true);
+    }
+  }, [activeExam, onExamActiveChange]);
+
   const handleExamExit = () => {
+    onExamActiveChange?.(false);
     setActiveExam(null);
     refreshResults();
   };
 
   if (activeExam !== null) {
-    return <MockExamPage testId={activeExam} onExit={handleExamExit} />;
+    return (
+      <MockExamPage
+        testId={activeExam}
+        onExit={handleExamExit}
+        onExamActiveChange={onExamActiveChange}
+      />
+    );
   }
 
   return (
@@ -124,88 +141,55 @@ export function MockTestsPage() {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.1 }}
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
+          transition={{ duration: 0.3 }}
         >
-          {tests.map((test, i) => (
-            <motion.div
-              key={test.id}
-              initial={{ opacity: 0, y: 14 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.06, duration: 0.35 }}
-            >
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {tests.map((test) => (
               <Card
-                data-ocid={`mock_tests.item.${test.id}`}
-                className="shadow-card hover:shadow-md transition-shadow"
+                key={test.id}
+                className="hover:shadow-md transition-shadow border"
               >
-                <CardHeader className="pb-3">
+                <CardHeader className="pb-2">
                   <div className="flex items-start justify-between gap-2">
-                    <CardTitle className="text-sm font-semibold">
+                    <CardTitle className="text-base font-semibold">
                       {test.name}
                     </CardTitle>
                     <Badge
-                      data-ocid={`mock_tests.item.${test.id}.toggle`}
-                      variant={
-                        test.status === "Completed" ? "default" : "outline"
-                      }
-                      className="text-xs flex-shrink-0"
-                      style={
+                      className={
                         test.status === "Completed"
-                          ? {
-                              background: "oklch(var(--success-bg))",
-                              color: "oklch(var(--success-text))",
-                              border: "none",
-                            }
-                          : {
-                              borderColor: "oklch(var(--navy))",
-                              color: "oklch(var(--navy))",
-                            }
+                          ? "bg-emerald-100 text-emerald-700 border-emerald-200 text-xs shrink-0"
+                          : "bg-sky-100 text-sky-700 border-sky-200 text-xs shrink-0"
                       }
                     >
                       {test.status}
                     </Badge>
                   </div>
                 </CardHeader>
-                <CardContent className="pt-0">
-                  <div className="flex items-center gap-3 text-xs text-muted-foreground mb-4">
-                    <span className="flex items-center gap-1">
-                      <Clock size={11} /> 90 min
+                <CardContent className="space-y-3">
+                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                    <span className="flex items-center gap-1.5">
+                      <Clock size={13} />
+                      90 min
                     </span>
-                    <span>120 questions</span>
+                    <span className="flex items-center gap-1.5">
+                      <Trophy size={13} />
+                      {test.score !== null
+                        ? `${test.score}% accuracy`
+                        : "120 questions"}
+                    </span>
                   </div>
-
-                  {test.score !== null && (
-                    <div
-                      className="flex items-center gap-2 mb-4 p-2 rounded-lg"
-                      style={{ background: "oklch(0.97 0.01 155)" }}
-                    >
-                      <Trophy
-                        size={14}
-                        style={{ color: "oklch(var(--success-text))" }}
-                      />
-                      <span
-                        className="text-xs font-semibold"
-                        style={{ color: "oklch(var(--success-text))" }}
-                      >
-                        Score: {Math.round(test.score)}%
-                      </span>
-                    </div>
-                  )}
-
                   <Button
-                    data-ocid={`mock_tests.item.${test.id}.primary_button`}
-                    size="sm"
-                    className="w-full h-8 text-xs rounded-lg gap-1.5"
-                    style={{ background: "oklch(var(--navy))", color: "white" }}
+                    className="w-full"
+                    style={{ backgroundColor: "#0F3554" }}
                     onClick={() => setActiveExam(test.id)}
+                    data-ocid={`mock_tests.item.${test.id}`}
                   >
-                    <PlayCircle size={13} />
                     {test.status === "Completed" ? "Retake Test" : "Start Test"}
                   </Button>
                 </CardContent>
               </Card>
-            </motion.div>
-          ))}
+            ))}
+          </div>
         </motion.div>
       )}
     </div>

@@ -35,10 +35,10 @@ const QUICK_NAV_ITEMS = [
     page: "Daily Practice" as ActivePage,
   },
   {
-    label: "Syllabus",
+    label: "Syllabus Tracker",
     icon: BookMarked,
     filled: false,
-    page: "Syllabus" as ActivePage,
+    page: "Syllabus Tracker" as ActivePage,
   },
   {
     label: "Profile",

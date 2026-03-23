@@ -7,8 +7,8 @@ import { useAuth } from "../../contexts/AuthContext";
 const NAV_LINKS: ActivePage[] = [
   "Dashboard",
   "Mock Tests",
-  "PYQ",
-  "Syllabus",
+  "PYQ Tests",
+  "Syllabus Tracker",
   "Flashcards",
   "Profile",
 ];
